@@ -10,11 +10,11 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     
     # Database
-    DATABASE_URL: str = "postgresql://plannen_user:plannen_pass@localhost:5432/plannen_db"
+    DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/plannen_fastapi"
     
     # Elasticsearch
     ELASTICSEARCH_URL: str = "http://localhost:9200"
-    ELASTICSEARCH_INDEX_PREFIX: str = "plannen"
+    ELASTICSEARCH_INDEX_PREFIX: str = "plannen_fastapi"
     
     class Config:
         env_file = ".env"

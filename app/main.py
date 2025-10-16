@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1 import items
+from app.api.v1 import plannen
 from app.core.config import settings
 
 app = FastAPI(
@@ -20,7 +20,7 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(items.router, prefix="/api/v1/items", tags=["items"])
+app.include_router(plannen.router, prefix="/api/v1/plannen", tags=["plannen"])
 
 
 @app.get("/")

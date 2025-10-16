@@ -1,3 +1,3 @@
-from app.models.item import Item
+from app.models.plan import Plan
 
-__all__ = ["Item"]
+__all__ = ["Plan"]
