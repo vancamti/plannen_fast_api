@@ -65,7 +65,7 @@ def delete_plan(
     plan_id: int,
     db: Session = Depends(get_db)
 ):
-    """Delete an plan."""
+    """Delete a plan."""
     success = PlanService.delete_plan(db=db, plan_id=plan_id)
     if not success:
         raise HTTPException(

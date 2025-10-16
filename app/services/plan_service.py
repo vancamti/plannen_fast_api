@@ -46,7 +46,7 @@ class PlanService:
     
     @staticmethod
     def delete_plan(db: Session, plan_id: int) -> bool:
-        """Delete an plan."""
+        """Delete a plan."""
         db_plan = db.query(Plan).filter(Plan.id == plan_id).first()
         if not db_plan:
             return False

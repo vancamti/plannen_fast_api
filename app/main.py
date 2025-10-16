@@ -20,7 +20,7 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(plannen.router, prefix="/api/v1/plannen", tags=["items"])
+app.include_router(plannen.router, prefix="/api/v1/plannen", tags=["plannen"])
 
 
 @app.get("/")

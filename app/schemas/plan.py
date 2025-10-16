@@ -78,7 +78,6 @@ class PlanBase(BaseModel):
     datum_goedkeuring: date | None
     startdatum: date | None
     einddatum: date | None
-    datum_goedkeuring: date | None
     beheerscommissie: bool | None
     # geometrie: Geometrie
     # locatie_elementen: List[LocatieElement]
