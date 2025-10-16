@@ -8,6 +8,8 @@ import sys
 
 def check_imports():
     """Check if all required packages can be imported."""
+    import importlib
+    
     print("Checking required packages...")
     packages = {
         'fastapi': 'FastAPI',
@@ -22,7 +24,7 @@ def check_imports():
     failed = []
     for package, name in packages.items():
         try:
-            __import__(package)
+            importlib.import_module(package)
             print(f"  ✓ {name}")
         except ImportError:
             print(f"  ✗ {name} - NOT FOUND")

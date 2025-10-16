@@ -1,9 +1,11 @@
 #!/bin/bash
 # Setup script for initial project configuration
+# Note: This script is designed for Unix-like systems (Linux, macOS).
+# For Windows, use WSL or manually follow the README installation steps.
 
 set -e
 
-echo "🚀 Setting up Plannen Fast API..."
+echo "🚀 Setting up Plannen FastAPI..."
 
 # Create virtual environment if it doesn't exist
 if [ ! -d "venv" ]; then

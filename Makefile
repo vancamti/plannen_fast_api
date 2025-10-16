@@ -25,11 +25,11 @@ migrate-create:  ## Create a new migration (usage: make migrate-create MSG="desc
 	alembic revision --autogenerate -m "$(MSG)"
 
 clean:  ## Clean up Python cache files
-	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name "__pycache__" -print0 | xargs -0 rm -rf 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete
 	find . -type f -name "*.pyo" -delete
 	find . -type f -name "*.coverage" -delete
-	find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name "*.egg-info" -print0 | xargs -0 rm -rf 2>/dev/null || true
 
 test:  ## Run tests (when implemented)
 	@echo "Tests not yet implemented"
