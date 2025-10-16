@@ -45,7 +45,7 @@ plannen_fast_api/
 - Python 3.9+
 - Docker and Docker Compose (for local development)
 
-### Installation
+### Quick Setup
 
 1. Clone the repository:
 ```bash
@@ -53,18 +53,30 @@ git clone https://github.com/vancamti/plannen_fast_api.git
 cd plannen_fast_api
 ```
 
-2. Create and activate a virtual environment:
+2. Run the setup script:
+```bash
+./setup.sh
+```
+
+This will:
+- Create a Python virtual environment
+- Install all dependencies
+- Create a `.env` file from the example
+
+### Manual Installation
+
+1. Create and activate a virtual environment:
 ```bash
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-3. Install dependencies:
+2. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-4. Copy the example environment file and configure:
+3. Copy the example environment file and configure:
 ```bash
 cp .env.example .env
 ```
@@ -83,6 +95,8 @@ alembic upgrade head
 
 3. Start the FastAPI application:
 ```bash
+./run.sh
+# or
 uvicorn app.main:app --reload
 ```
 
@@ -126,10 +140,32 @@ alembic downgrade -1
 
 ## Development
 
+### Using Make Commands
+
+The project includes a Makefile with common tasks:
+
+```bash
+make help          # Show all available commands
+make setup         # Setup the project
+make run           # Run the FastAPI application
+make docker-up     # Start PostgreSQL and Elasticsearch
+make docker-down   # Stop Docker services
+make migrate       # Run database migrations
+make clean         # Clean up Python cache files
+```
+
+### Verify Setup
+
+Run the verification script to check if everything is set up correctly:
+
+```bash
+python verify_setup.py
+```
+
 ### Running Tests
 
 ```bash
-pytest
+pytest  # (Not yet implemented)
 ```
 
 ### Code Formatting
