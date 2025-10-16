@@ -11,9 +11,11 @@ pydantic-settings==2.1.0
 sqlalchemy==2.0.23
 alembic==1.12.1
 psycopg2-binary==2.9.9
+geoalchemy2==0.16.0
 
 # Elasticsearch
 elasticsearch==8.11.0
 
 # Other utilities
 python-dotenv==1.0.0
+pytz==2025.2

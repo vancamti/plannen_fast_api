@@ -1,3 +1,3 @@
-from app.schemas.item import ItemCreate, ItemUpdate, ItemResponse
+from app.schemas.plan import PlanCreate, PlanUpdate, PlanResponse
 
-__all__ = ["ItemCreate", "ItemUpdate", "ItemResponse"]
+__all__ = ["PlanCreate", "PlanUpdate", "PlanResponse"]
