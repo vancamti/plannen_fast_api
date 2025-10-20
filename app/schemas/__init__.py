@@ -1,3 +1,10 @@
-from app.schemas.plan import PlanCreate, PlanUpdate, PlanResponse
+from app.schemas.plan import *
 
-__all__ = ["PlanCreate", "PlanUpdate", "PlanResponse"]
+__all__ = [
+    "PlanCreate",
+    "PlanUpdate",
+    "PlanResponse",
+    "RelatieBase",
+    "RelatieCreate",
+    "RelatieResponse",
+]
