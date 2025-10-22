@@ -6,12 +6,17 @@ from typing import Annotated
 from typing import List
 from typing import Optional
 
+from minio.error import MinioException
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import HttpUrl
+from pydantic import computed_field
 from pydantic import field_validator
+from pydantic import model_validator
+from pydantic_core.core_schema import ValidationInfo
 
+from app.models.enums import Bestandssoort
 from app.models.enums import Status
 
 
@@ -63,8 +68,47 @@ class BestandBase(BaseModel):
     mime: str
 
 
-class BestandCreate(BestandBase):
-    pass
+class BestandCreate(BaseModel):
+    naam : Annotated[str, Field(min_length=1)]
+    bestandssoort_id : int
+    temporary_storage_key: Annotated[str, Field(min_length=1)]
+    mime: str
+
+    @field_validator("bestandssoort_id", mode="before")
+    @classmethod
+    def bestandssoort_id_validator(cls, value: str) -> str:
+        Bestandssoort.from_id(value)
+        return value
+
+    @model_validator(mode="before")
+    def temp_key_validator(self, info: ValidationInfo):
+        storage_provider = info.context.get('storageprovider')
+        content_manager = info.context.get('content_manager')
+        try:
+            metadata = storage_provider.get_object_metadata(
+                container_key=content_manager.temp_container,
+                object_key=self["temporary_storage_key"],
+                system_token=content_manager.system_token(),
+            )
+        except MinioException as me:
+            raise ValueError(repr(me))
+
+        self["mime"] = metadata.get('Content-Type', 'application/octet-stream')
+
+        return self
+
+    @field_validator("naam", mode="before")
+    @classmethod
+    def validate_naam(cls, naam):
+        allowed_extensions = (".pdf", ".jpg", ".jpeg", ".png", ".xls", ".xlsx")
+        naam_lower = naam.lower()
+        if not any(naam_lower.endswith(extension) for extension in allowed_extensions):
+            message = (
+                "Dit is geen geldige bijlage. De toegelaten bijlagetypes zijn "
+                ".pdf, .jp(e)g, .png, .xls(x)"
+            )
+            raise ValueError(message)
+        return naam
 
 
 class BestandResponse(BestandBase):

@@ -28,7 +28,7 @@ from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
 
 from app import schemas
-from app.constants import SETTINGS
+from app.constants import settings
 from app.db.base import Base
 from app.models import enums
 
@@ -180,7 +180,7 @@ class Plan(Base):
     #         self.updated_by_description = session.actor_omschrijving
 
     def self(self) -> str:
-        return SETTINGS["PLANNEN_URI"]
+        return settings.PLANNEN_URI
 
     def to_detail_model(self) -> schemas.PlanResponse:
         detail = schemas.PlanResponse.model_construct(
@@ -336,25 +336,23 @@ class PlanBestand(Base):
     def bestand(self, value: str) -> None:
         self.mime = value
 
+    def after_flush_new(self, request, session):
+        if self.temporary_storage_key is not None:
+            content_manager = request.registry.content_manager
+            content_manager.copy_temp_content(
+                self.temporary_storage_key, self.plan_id, self.id
+            )
 
-#
-# def after_flush_new(self, request, session: Session) -> None:
-#     if self.temporary_storage_key is not None:
-#         content_manager = request.registry.content_manager
-#         content_manager.copy_temp_content(self.temporary_storage_key, self.plan_id, self.id)
-#
-# def after_flush_dirty(self, request, session: Session) -> None:
-#     if self.temporary_storage_key is not None:
-#         content_manager = request.registry.content_manager
-#         content_manager.copy_temp_content(self.temporary_storage_key, self.plan_id, self.id)
-#
-# def persistent_to_deleted(self, request, session: Session) -> None:
-#     content_manager = request.registry.content_manager
-#     try:
-#         content_manager.remove_content(self.plan_id, self.id)
-#     except InvalidStateException as exc:
-#         if exc.status_code != 404:
-#             raise
+    def after_flush_dirty(self, request, session):
+        if self.temporary_storage_key is not None:
+            content_manager = request.registry.content_manager
+            content_manager.copy_temp_content(
+                self.temporary_storage_key, self.plan_id, self.id
+            )
+
+    def persistent_to_deleted(self, request, session):
+        content_manager = request.registry.content_manager
+        content_manager.remove_content(self.plan_id, self.id)
 
 
 class PlanConcept(Base):

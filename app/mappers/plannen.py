@@ -7,7 +7,7 @@ from starlette.requests import Request
 
 from app import models
 from app import schemas
-from app.constants import SETTINGS
+from app.constants import settings
 from app.models import enums
 
 
@@ -101,12 +101,23 @@ def pydantic_bestanden_to_db(
         for bestand in bestanden
     ]
 
+def pydantic_bestand_to_db(
+    bestand: schemas.BestandCreate, plan_id: int
+) -> models.PlanBestand:
+    """Map a pydantic BestandCreate to a SQLAlchemy PlanBestand model."""
+    return models.PlanBestand(
+        plan_id=plan_id,
+        bestandssoort=enums.Bestandssoort.from_id(bestand.bestandssoort_id),
+        mime=bestand.mime,
+        naam=bestand.naam,
+        temporary_storage_key=bestand.temporary_storage_key,
+    )
 
 def plan_db_to_pydantic(plan: models.Plan, request: Request= None) -> schemas.PlanResponse:
     """Map a SQLAlchemy Plan model to a pydantic PlanResponse."""
     return schemas.PlanResponse(
         id=plan.id,
-        uri=SETTINGS["PLANNEN_URI"].format(id=plan.id),
+        uri=settings.PLANNEN_URI.format(id=plan.id),
         self=str(request.url_for("get_plan", plan_id=plan.id)),
         onderwerp=plan.onderwerp,
         datum_goedkeuring=plan.datum_goedkeuring,
@@ -156,7 +167,7 @@ def bestand_db_to_pydantic(
         plan_id=bestand.plan_id,
         naam=bestand.naam,
         mime=bestand.mime,
-        bestandssoort_id=bestand.bestandssoort.value,
+        bestandssoort_id=bestand.bestandssoort.id,
     )
 
 

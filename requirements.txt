@@ -3,6 +3,9 @@ fastapi==0.104.1
 uvicorn[standard]==0.24.0
 python-multipart==0.0.6
 
+# Redis
+redis
+
 # Pydantic
 pydantic==2.5.0
 pydantic-settings==2.1.0
@@ -23,9 +26,14 @@ elasticsearch==8.11.0
 python-dotenv==1.0.0
 pytz==2025.2
 
+# Storage
+storageprovider-client==3.0.1
+
 # Testing
 pytest
 httpx
 
-oe-utils @ git+ssh://git@github.com/OnroerendErfgoed/oe_utils.git@dd66ea88af90e7ef964b50566f8c096519103384
-oe-geoutils @ git+ssh://git@github.com/OnroerendErfgoed/oe_geoutils.git@8428c6fe71fa4f2e9c488fdab87b3a59ab8532cf
+oe-utils @ git+ssh://git@github.com/OnroerendErfgoed/oe_utils.git@7.2.0
+oe-geoutils @ git+ssh://git@github.com/OnroerendErfgoed/oe_geoutils.git@3.0.0
+storageprovider-client @ git+ssh://git@github.com/OnroerendErfgoed/storageprovider-client.git@3.0.1
+oeauth @ git+ssh://git@github.com/OnroerendErfgoed/oeauth.git@2.10.0

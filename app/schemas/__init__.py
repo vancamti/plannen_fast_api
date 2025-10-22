@@ -1,4 +1,4 @@
-from app.schemas.plan import *
+from app.schemas.plannen import *
 
 __all__ = [
     "PlanCreate",

@@ -1,12 +1,16 @@
 from typing import Any
+from typing import Any
 from typing import List, Optional
 from fastapi import Request
 from oe_geoutils.utils import convert_geojson_to_wktelement
 from sqlalchemy.orm import Session
 
-from app.mappers.plan import pydantic_plan_to_db
+from app.mappers.plannen import pydantic_bestand_to_db
+from app.mappers.plannen import pydantic_plan_to_db
 from app.models import Plan
-from app.schemas.plan import PlanCreate, PlanUpdate
+from app.models import PlanBestand
+from app.schemas import BestandCreate
+from app.schemas.plannen import PlanCreate, PlanUpdate
 
 
 class PlanService:
@@ -56,3 +60,12 @@ class PlanService:
         db.delete(db_plan)
         db.commit()
         return True
+
+    @staticmethod
+    def add_bestand(db: Session, plan_id: int, bestand: BestandCreate) -> PlanBestand | None:
+        """Add a bestand to a plan."""
+        bestand = pydantic_bestand_to_db(bestand,plan_id)
+        db.add(bestand)
+        db.commit()
+        db.refresh(bestand)
+        return bestand

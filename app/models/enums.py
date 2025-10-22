@@ -43,7 +43,7 @@ class Bestandssoort(enum.Enum):
 
     @classmethod
     def from_id(cls, type_id):
-        for status in Status:
-            if status.id == type_id:
-                return status
-        raise ValueError(f"ID '{type_id}' is geen status type.")
+        for bestandssoort in Bestandssoort:
+            if bestandssoort.id == type_id:
+                return bestandssoort
+        raise ValueError(f"ID '{type_id}' is geen bestandssoort.")
