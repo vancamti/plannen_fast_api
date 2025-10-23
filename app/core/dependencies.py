@@ -1,13 +1,21 @@
 from contextlib import asynccontextmanager
 
+from fastapi import Depends
 from fastapi import FastAPI
 from fastapi import HTTPException
 from oeauth.openid import OpenIDHelper
+from starlette import status
 from storageprovider.client import StorageProviderClient
 from storageprovider.providers.minio import MinioProvider
 
 from app.constants import settings
+from app.core.db import get_db
+from app.models import Plan
+from app.models import PlanBestand
+from app.models import PlanStatus
 from app.storage.conent_manager import ContentManager
+from typing import TypeVar, Type, Callable, Optional
+from sqlalchemy.orm import Session, Query
 
 # Global instances (initialized on startup)
 _storage_provider: StorageProviderClient | None = None
@@ -84,3 +92,44 @@ def get_token_provider() -> OpenIDHelper:
     if _token_provider is None:
         raise HTTPException(status_code=503, detail="Token provider not initialized")
     return _token_provider
+
+
+T = TypeVar("T")
+
+
+def get_object_or_404(
+        model: Type[T],
+        id_field: str = "id",
+        error_message: Optional[str] = None
+) -> Callable[[int, Session], T]:
+    """
+    Generic dependency to get an object by ID or raise 404 if not found.
+    :param model:
+    :param id_field:
+    :param error_message:
+    :return:
+    """
+
+    def dependency(
+            object_id: int,
+            db: Session = Depends(get_db)
+    ) -> T:
+        query = db.query(model).filter(
+            getattr(model, id_field) == object_id
+        )
+        obj = query.first()
+
+        if obj is None:
+            msg = error_message or f"{model.__name__} with id {object_id} not found"
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=msg
+            )
+
+        return obj
+
+    return dependency
+
+get_plan_or_404 = get_object_or_404(model=Plan)
+get_bestand_or_404 = get_object_or_404(model=PlanBestand)
+get_status_or_404 = get_object_or_404(model=PlanStatus)

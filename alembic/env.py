@@ -7,12 +7,13 @@ from sqlalchemy import pool
 
 from alembic import context
 
+from app.constants import settings
+
 # Add parent directory to path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 # Import models and configuration
-from app.core.config import settings
-from app.db.base import Base
+from app.models import Base
 from app.models import Plan  # noqa
 
 # this is the Alembic Config object, which provides

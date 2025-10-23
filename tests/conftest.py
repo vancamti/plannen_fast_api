@@ -2,6 +2,9 @@ from collections.abc import Generator
 from pathlib import Path
 import sys
 
+from app.core.db import get_db
+from app.models import Base
+
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 import pytest
@@ -11,7 +14,6 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.db.base import Base, get_db
 from app.main import app
 
 

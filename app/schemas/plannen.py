@@ -62,10 +62,30 @@ class LocatieElementResponse(LocatieElementBase):
 
 
 class BestandBase(BaseModel):
-    bestandssoort_id: int
-    plan_id: int
-    naam: str
+    naam : Annotated[str, Field(min_length=1)]
+    bestandssoort_id : int
+    temporary_storage_key: Annotated[Optional[str], Field(min_length=1)] = None
     mime: str
+
+    @field_validator("bestandssoort_id", mode="before")
+    @classmethod
+    def bestandssoort_id_validator(cls, value: str) -> str:
+        Bestandssoort.from_id(value)
+        return value
+
+
+    @field_validator("naam", mode="before")
+    @classmethod
+    def validate_naam(cls, naam):
+        allowed_extensions = (".pdf", ".jpg", ".jpeg", ".png", ".xls", ".xlsx")
+        naam_lower = naam.lower()
+        if not any(naam_lower.endswith(extension) for extension in allowed_extensions):
+            message = (
+                "Dit is geen geldige bijlage. De toegelaten bijlagetypes zijn "
+                ".pdf, .jp(e)g, .png, .xls(x)"
+            )
+            raise ValueError(message)
+        return naam
 
 
 class BestandCreate(BaseModel):
@@ -74,11 +94,6 @@ class BestandCreate(BaseModel):
     temporary_storage_key: Annotated[str, Field(min_length=1)]
     mime: str
 
-    @field_validator("bestandssoort_id", mode="before")
-    @classmethod
-    def bestandssoort_id_validator(cls, value: str) -> str:
-        Bestandssoort.from_id(value)
-        return value
 
     @model_validator(mode="before")
     def temp_key_validator(self, info: ValidationInfo):
@@ -97,23 +112,14 @@ class BestandCreate(BaseModel):
 
         return self
 
-    @field_validator("naam", mode="before")
-    @classmethod
-    def validate_naam(cls, naam):
-        allowed_extensions = (".pdf", ".jpg", ".jpeg", ".png", ".xls", ".xlsx")
-        naam_lower = naam.lower()
-        if not any(naam_lower.endswith(extension) for extension in allowed_extensions):
-            message = (
-                "Dit is geen geldige bijlage. De toegelaten bijlagetypes zijn "
-                ".pdf, .jp(e)g, .png, .xls(x)"
-            )
-            raise ValueError(message)
-        return naam
+
+class BestandUpdate(BestandBase):
+    pass
 
 
 class BestandResponse(BestandBase):
     id: int
-
+    plan_id: int
 
 class Label(BaseModel):
     label: Optional[str] = None
@@ -191,6 +197,7 @@ class StatusCreate(StatusBase):
 
 class StatusResponse(StatusBase):
     id: int
+    plan_id: int
 
 
 class PlanBase(BaseModel):

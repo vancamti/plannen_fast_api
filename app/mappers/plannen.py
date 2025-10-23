@@ -1,4 +1,5 @@
 from typing import List
+from typing import Optional
 
 from geoalchemy2 import WKTElement
 from oe_geoutils.utils import convert_geojson_to_wktelement
@@ -11,21 +12,22 @@ from app.constants import settings
 from app.models import enums
 
 
-def pydantic_plan_to_db(plan: schemas.PlanCreate) -> models.Plan:
+def pydantic_plan_to_db(plan: schemas.PlanCreate | schemas.PlanUpdate, existing: Optional[models.Plan] = None) -> models.Plan:
     """map a pydantic PlanCreate to a SQLAlchemy Plan model."""
-    return models.Plan(
-        onderwerp=plan.onderwerp,
-        datum_goedkeuring=plan.datum_goedkeuring,
-        startdatum=plan.startdatum,
-        einddatum=plan.einddatum,
-        beheerscommissie=plan.beheerscommissie,
-        geometrie=pydantic_geometrie_to_db(plan.geometrie),
-        relaties=pydantic_relaties_to_db(plan.relaties),
-        statussen=pydantic_statussen_to_db(plan.statussen),
-        locatie_elementen=pydantic_locatie_elementen_to_db(plan.locatie_elementen),
-        bestanden=pydantic_bestanden_to_db(plan.bestanden),
-        erfgoedobjecten=pydantic_erfgoedobjecten_to_db(plan.erfgoedobjecten),
-    )
+    db_plan = existing or models.Plan()
+    db_plan.onderwerp=plan.onderwerp
+    db_plan.datum_goedkeuring=plan.datum_goedkeuring
+    db_plan.startdatum=plan.startdatum
+    db_plan.einddatum=plan.einddatum
+    db_plan.beheerscommissie=plan.beheerscommissie
+    db_plan.geometrie=pydantic_geometrie_to_db(plan.geometrie)
+    db_plan.relaties=pydantic_relaties_to_db(plan.relaties)
+    # db_plan.statussen=pydantic_statussen_to_db(plan.statussen) # Handled separately
+    db_plan.locatie_elementen=pydantic_locatie_elementen_to_db(plan.locatie_elementen)
+    # db_plan.bestanden=pydantic_bestanden_to_db(plan.bestanden) # Handled separately
+    db_plan.erfgoedobjecten=pydantic_erfgoedobjecten_to_db(plan.erfgoedobjecten)
+
+    return db_plan
 
 
 def pydantic_geometrie_to_db(geometrie: schemas.Geometrie) -> WKTElement:
@@ -56,20 +58,18 @@ def pydantic_erfgoedobjecten_to_db(
     ]
 
 
-def pydantic_statussen_to_db(
-    statussen: List[schemas.StatusCreate],
-) -> List[models.PlanStatus]:
-    """Map a list of pydantic StatusCreate to a list of SQLAlchemy PlanStatus models."""
-    return [
-        models.PlanStatus(
-            status=enums.Status.from_id(status.status_id),
-            datum=status.datum,
-            aanpasser_uri=str(status.aanpasser_uri),
-            aanpasser_omschrijving=status.aanpasser_omschrijving,
-            opmerkingen=status.opmerkingen,
-        )
-        for status in statussen
-    ]
+def pydantic_status_to_db(
+        status: schemas.StatusCreate, plan_id: int
+) -> models.PlanStatus:
+    return models.PlanStatus(
+        status=enums.Status.from_id(status.status_id),
+        plan_id=plan_id,
+        datum=status.datum,
+        aanpasser_uri=str(status.aanpasser_uri),
+        aanpasser_omschrijving=status.aanpasser_omschrijving,
+        opmerkingen=status.opmerkingen,
+    )
+
 
 
 def pydantic_locatie_elementen_to_db(
@@ -102,16 +102,18 @@ def pydantic_bestanden_to_db(
     ]
 
 def pydantic_bestand_to_db(
-    bestand: schemas.BestandCreate, plan_id: int
+    bestand: schemas.BestandCreate | schemas.BestandUpdate,
+        plan_id: int, existing: Optional[models.PlanBestand] = None
 ) -> models.PlanBestand:
     """Map a pydantic BestandCreate to a SQLAlchemy PlanBestand model."""
-    return models.PlanBestand(
-        plan_id=plan_id,
-        bestandssoort=enums.Bestandssoort.from_id(bestand.bestandssoort_id),
-        mime=bestand.mime,
-        naam=bestand.naam,
-        temporary_storage_key=bestand.temporary_storage_key,
-    )
+    db_bestand = existing or models.PlanBestand()
+    db_bestand.plan_id=plan_id
+    db_bestand.bestandssoort=enums.Bestandssoort.from_id(bestand.bestandssoort_id)
+    db_bestand.mime=bestand.mime
+    db_bestand.naam=bestand.naam
+    db_bestand.temporary_storage_key=bestand.temporary_storage_key
+
+    return db_bestand
 
 def plan_db_to_pydantic(plan: models.Plan, request: Request= None) -> schemas.PlanResponse:
     """Map a SQLAlchemy Plan model to a pydantic PlanResponse."""
@@ -176,6 +178,7 @@ def status_db_to_pydantic(
 ) -> schemas.StatusResponse:
     """Map a SQLAlchemy PlanStatus model to a pydantic StatusResponse."""
     return schemas.StatusResponse(
+        plan_id=status.plan_id,
         id=status.id,
         status_id=status.status.id,
         naam=status.status.naam,

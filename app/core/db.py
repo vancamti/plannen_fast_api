@@ -1,13 +1,15 @@
+from typing import TYPE_CHECKING
+
 from fastapi import Depends
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
 from app.core.config import get_settings
-from app.core.dependencies import get_content_manager
-from app.storage.conent_manager import ContentManager
+
+if TYPE_CHECKING:
+    from app.storage.conent_manager import ContentManager
 
 settings = get_settings()
 
@@ -15,11 +17,15 @@ settings = get_settings()
 engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True, echo=settings.DEBUG)
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-# Create base class for models
-Base = declarative_base()
 
 
-def get_db(content_manager: ContentManager = Depends(get_content_manager)):
+def _get_content_manager():
+    from app.core.dependencies import get_content_manager
+
+    return get_content_manager()
+
+
+def get_db(content_manager: "ContentManager" = Depends(_get_content_manager)):
     """Dependency to get database session."""
     db = SessionLocal()
     db.info['content_manager'] = content_manager
@@ -27,6 +33,7 @@ def get_db(content_manager: ContentManager = Depends(get_content_manager)):
         yield db
     finally:
         db.close()
+
 
 class DBSessionMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):

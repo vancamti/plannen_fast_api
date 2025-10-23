@@ -54,7 +54,7 @@ def check_app_structure():
     required_files = [
         "app/main.py",
         "app/core/config.py",
-        "app/db/base.py",
+        "app/db/db.py",
         "app/db/elasticsearch.py",
         "requirements.txt",
         "docker-compose.yml",

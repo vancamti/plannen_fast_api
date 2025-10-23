@@ -1,5 +1,6 @@
 from typing import Any
 from typing import Any
+from typing import Any
 from typing import List, Optional
 from fastapi import Request
 from oe_geoutils.utils import convert_geojson_to_wktelement
@@ -7,9 +8,13 @@ from sqlalchemy.orm import Session
 
 from app.mappers.plannen import pydantic_bestand_to_db
 from app.mappers.plannen import pydantic_plan_to_db
+from app.mappers.plannen import pydantic_status_to_db
 from app.models import Plan
 from app.models import PlanBestand
+from app.models import PlanStatus
 from app.schemas import BestandCreate
+from app.schemas import BestandUpdate
+from app.schemas import StatusCreate
 from app.schemas.plannen import PlanCreate, PlanUpdate
 
 
@@ -23,6 +28,7 @@ class PlanService:
         db.add(db_plan)
         db.commit()
         db.refresh(db_plan)
+
         return db_plan
 
     @staticmethod
@@ -36,18 +42,13 @@ class PlanService:
         return db.query(Plan).offset(skip).limit(limit).all()
 
     @staticmethod
-    def update_plan(db: Session, plan_id: int, plan: PlanUpdate) -> Optional[Plan]:
+    def update_plan(db: Session, existing: Plan, plan: PlanUpdate) -> Optional[Plan]:
         """Update an existing plan."""
-        db_plan = db.query(Plan).filter(Plan.id == plan_id).first()
-        if not db_plan:
-            return None
-
-        update_data = plan.model_dump(exclude_unset=True)
-        for field, value in update_data.items():
-            setattr(db_plan, field, value)
-
+        db_plan = pydantic_plan_to_db(plan, existing=existing)
+        db.add(db_plan)
         db.commit()
         db.refresh(db_plan)
+
         return db_plan
 
     @staticmethod
@@ -69,3 +70,39 @@ class PlanService:
         db.commit()
         db.refresh(bestand)
         return bestand
+
+    @staticmethod
+    def update_bestand(db: Session, existing: PlanBestand, bestand_data: BestandUpdate) -> Optional[PlanBestand]:
+        """Update a bestand of a plan."""
+        db_bestand = pydantic_bestand_to_db(bestand_data, existing.plan_id, existing=existing)
+        db.add(db_bestand)
+        db.commit()
+        db.refresh(db_bestand)
+        return db_bestand
+
+    @staticmethod
+    def delete_bestand(db: Session, db_bestand: PlanBestand) -> bool:
+        """Delete a bestand from a plan."""
+        db.delete(db_bestand)
+        db.commit()
+        return True 
+    
+    @staticmethod
+    def add_status(db: Session, plan_id: int, status: StatusCreate) -> PlanStatus | None:
+        """Add a status to a plan."""
+        status = pydantic_status_to_db(status, plan_id)
+        db.add(status)
+        db.commit()
+        db.refresh(status)
+        return status
+
+    def get_statussen(db: Session, plan_id: int) -> list[type[PlanStatus]]:
+        """Get all statuses for a plan."""
+        return db.query(PlanStatus).filter(PlanStatus.plan_id == plan_id).all()
+
+    @staticmethod
+    def delete_status(db: Session, db_status: PlanStatus) -> bool:
+        """Delete a status from a plan."""
+        db.delete(db_status)
+        db.commit()
+        return True

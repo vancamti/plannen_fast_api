@@ -21,7 +21,6 @@ from sqlalchemy import Text
 from sqlalchemy import func
 from sqlalchemy import select
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import mapped_column
@@ -29,7 +28,7 @@ from sqlalchemy.orm import relationship
 
 from app import schemas
 from app.constants import settings
-from app.db.base import Base
+from app.models import Base
 from app.models import enums
 
 log = logging.getLogger(__name__)
@@ -409,19 +408,6 @@ class Plankenmerk(Base):
     )
 
 
-# class Bestandssoort(Base):
-#     """Stelt de soort van een bestand voor."""
-#
-#     __tablename__ = "bestandssoorten"
-#
-#     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-#     soort: Mapped[str | None] = mapped_column(String(100))
-#
-#     bestanden: Mapped[list[PlanBestand]] = relationship(
-#         "PlanBestand", back_populates="bestandssoort"
-#     )
-
-
 class FeedEntry(Base):
     __tablename__ = "feedentries"
     __table_args__ = {"sqlite_autoincrement": True}
@@ -499,24 +485,3 @@ class LocatieElement(Base):
 #         "persistent_to_deleted",
 #         lambda _, instance: session_persistent_to_deleted(session, instance, request),
 #     )
-
-
-__all__ = [
-    "Base",
-    "Plan",
-    # "Relatietype",
-    # "PlanRelatie",
-    # "PlanErfgoedobject",
-    # "PlanStatus",
-    # "Status",
-    # "PlanBestand",
-    # "PlanConcept",
-    # "Plankenmerk",
-    # "Bestandssoort",
-    # "FeedEntry",
-    # "LocatieElement",
-    # "session_before_flush",
-    # "session_after_flush",
-    # "session_persistent_to_deleted",
-    # "register_listeners",
-]
