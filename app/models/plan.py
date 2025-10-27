@@ -123,9 +123,9 @@ class Plan(Base):
     #     nullable=False,
     # )
     #
-    # @hybrid_property
-    # def plantype(self) -> PlanConcept | None:
-    #     return next((c for c in self.concepten if c.plankenmerk.id == "plantypes"), None)
+    @hybrid_property
+    def plantype(self) -> PlanConcept | None:
+        return next((c for c in self.concepten if c.plankenmerk.id == "plantypes"), None)
     #
     # def filter_relaties(self, type_: str) -> list[PlanRelatie]:
     #     """Filter de relaties van een plan volgens type."""
@@ -334,6 +334,7 @@ class PlanBestand(Base):
     @bestand.setter
     def bestand(self, value: str) -> None:
         self.mime = value
+
 
     def after_flush_new(self, request, session):
         if self.temporary_storage_key is not None:

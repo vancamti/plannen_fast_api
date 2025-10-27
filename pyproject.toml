@@ -1,0 +1,137 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+version = "2.2.0"
+name = "plannen"
+readme = "README.md"
+authors = [
+    { name = "Flanders Heritage Agency", email = "ict@onroerenderfgoed.be" },
+]
+description = "plannen"
+requires-python = ">=3.10,<3.12"
+keywords = ["web", "pyramid", "wsgi"]
+classifiers = [
+    "Programming Language :: Python",
+    "Framework :: Pyramid",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Internet :: WWW/HTTP :: WSGI :: Application",
+]
+dependencies = [
+    "alembic==1.8.0",
+    "Babel==2.10.1",
+    "colander==1.8.3",
+    "cornice==6.0.1",
+    "crabpy-pyramid==2.2.0",
+    "crabpy==1.6.1",
+    "dcextensions==0.0.1",
+    "dogpile.cache==1.3.3",
+    "feedgen==0.9.0",
+    "geojson==2.5.0",
+    "httpx==0.28.1",
+    "gevent==24.11.1",
+    "oe-geoutils==2.6.3",
+    "oe-utils[redis,sentry]==6.8.0",
+    "oeauth==2.10.0 ",
+    "pandas==2.2.3",
+    "psycogreen==1.0.2",
+    "pyoes==0.24.1",
+    "pyramid-jinja2==2.10",
+    "pyramid-oeauth==4.13.0",
+    "pyramid-rewrite==0.2",
+    "pyramid-session-redis==1.6.3",
+    "pyramid-skosprovider==1.1.0",
+    "pyramid-tm==2.5",
+    "pyramid-urireferencer==0.8.0",
+    "python-dateutil",
+    "python-magic==0.4.27",
+    "pytz==2022.1",
+    "redis==4.4.4",
+    "rfc3987==1.3.8",
+    "rq==1.15.1",
+    "sentry_sdk==2.25.1",
+    "skosprovider==1.1.1",
+    "skosprovider_atramhasis==1.0.0",
+    "SQLAlchemy==1.4.37",
+    "storageprovider-client==3.0.1",
+    "transaction==3.0.1",
+    "wsgicoers==0.11.0",
+    "zipp==3.8.0",
+]
+
+[project.optional-dependencies]
+server = [
+    "psycopg2==2.9.9"
+]
+dev = [
+    "Sphinx==5.0.1",
+    "WebTest==3.0.0",
+    "flake8==4.0.1",
+    "hatchling==1.14.0",
+    "psycopg2-binary==2.9.9",
+    "py==1.11.0",
+    "pyramid-debugtoolbar==4.9",
+    "pytest-cov==7.0.0",
+    "pytest==8.4.2",
+    "responses==0.25.8",
+    "respx==0.22.0",
+    "six==1.16.0",
+    "sphinx-rtd-theme==1.0.0",
+    "sphinxcontrib-httpdomain==1.8.0",
+    "sphinxcontrib-plantuml==0.23",
+]
+private = [
+    "oeauth @ git+ssh://git@github.com/OnroerendErfgoed/oeauth.git@2.10.0",
+    "pyramid-oeauth @ git+ssh://git@github.com/OnroerendErfgoed/pyramid_oeauth.git@4.13.0",
+    "wsgicoers @ git+ssh://git@github.com/OnroerendErfgoed/wsgicoers.git@0.11.0",
+    "oe-utils[redis,sentry] @ git+ssh://git@github.com/OnroerendErfgoed/oe_utils.git@6.8.0",
+    "oe-geoutils @ git+ssh://git@github.com/OnroerendErfgoed/oe_geoutils.git@2.6.3",
+    "storageprovider-client @ git+ssh://git@github.com/OnroerendErfgoed/storageprovider-client.git@3.0.1",
+]
+
+[project.entry-points."paste.app_factory"]
+main = "plannen:main"
+
+[project.entry-points."gevent.plugins.monkey.did_patch_builtins"]
+psycopg2 = "plannen:patch_psycopg"
+
+##
+# Build tool specific
+##
+#[tool.hatch.build.targets.wheel.hooks.custom]
+#path = "build_hook.py"
+#
+#[tool.hatch.build.targets.sdist]
+## We do not need generated folders in the source distribution.
+## The source should contain everything to generate these.
+#exclude = [
+#    "/plannen_frontend/node_modules",
+#    "/plannen_frontend/static/css",
+#    "/plannen_frontend/cypress/screenshots",
+#    "/dist",
+#]
+
+[tool.hatch.build.targets.wheel]
+# In the wheel we want to have plannen in the root as a python module.
+packages = [
+    "/plannen",
+]
+# In the wheel we do not need the proces_frontend folder
+exclude = [
+    "/plannen_frontend"
+]
+# these folders are (partially) in gitignore and would otherwise not be part of the builds
+artifacts = [
+    "/plannen/static",
+    "/plannen/templates",
+]
+
+[project.scripts]
+initialize_beheersplannen_db = "fixtures.initializedb:main"
+clear_beheersplannen_db = "fixtures.cleardb:main"
+initialize_beheersplannen_es = "plannen.scripts.index_es:main"
+
+[tool.hatch.metadata]
+# This allows us to use github links as dependencies
+allow-direct-references = true

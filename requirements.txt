@@ -25,6 +25,9 @@ elasticsearch==8.11.0
 # Other utilities
 python-dotenv==1.0.0
 pytz==2025.2
+skosprovider
+rq
+skosprovider_atramhasis
 
 # Storage
 storageprovider-client==3.0.1

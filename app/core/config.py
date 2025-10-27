@@ -16,7 +16,8 @@ class Settings(BaseSettings):
 
     # Elasticsearch
     ELASTICSEARCH_URL: str = "http://localhost:9200"
-    ELASTICSEARCH_INDEX_PREFIX: str = "plannen_fastapi"
+    ELASTICSEARCH_INDEX: str = "plannen_fastapi"
+    ELASTICSEARCH_API_KEY : str = "your_elasticsearch_api_key"
 
     # Minio S3
     MINIO_ENDPOINT : str = "localhost:9000"
@@ -64,8 +65,8 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
-        case_sensitive = False
-        ignore_extra = True
+        case_sensitive = True
+        ignore_extra = False
         extra="allow"
 
 
