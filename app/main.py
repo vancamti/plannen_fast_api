@@ -1,10 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from app.core.dependencies import DBSessionMiddleware
 from app.models.listeners import *  # noqa: F401
 from app.api.v1 import plannen
 from app.constants import settings
 from app.core.dependencies import lifespan
-from app.core.db import DBSessionMiddleware
 from app.exceptions import register_exception_handlers
 from app.openapi.schema import apply_custom_openapi
 

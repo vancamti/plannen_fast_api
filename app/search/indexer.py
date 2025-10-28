@@ -1,22 +1,19 @@
 import itertools as it
 import logging
 import uuid
+from contextlib import contextmanager
+from typing import Iterator
 
+from oe_utils.utils.db_utils import db_session
 from requests import HTTPError
 from sqlalchemy import event
 from sqlalchemy import select
-from sqlalchemy.orm import object_session
-from zope.interface import Interface
+from sqlalchemy.orm import Session, object_session
 
-import oe_utils.utils.db_utils
 from oe_utils.jobs import queue_job
 from oe_utils.search.searchengine import SearchEngine
 
 log = logging.getLogger()
-
-
-class IIndexer(Interface):
-    pass
 
 
 class IndexingWorker:
@@ -36,7 +33,7 @@ class IndexingWorker:
         :param list index_deleted: model that need to be deleted from the index
         """
         log.info("starting index operation")
-        with oe_utils.utils.db_utils.db_session(self.settings) as session:
+        with db_session() as session:
             for object_id in it.chain(index_new, index_dirty):
                 self.index(session, object_id)
             for object_id in index_deleted:

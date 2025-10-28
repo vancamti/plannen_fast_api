@@ -4,6 +4,7 @@ import json
 import logging
 from datetime import date
 from datetime import datetime
+from typing import Any, Mapping
 
 import httpx
 from elasticsearch8 import NotFoundError
@@ -13,49 +14,102 @@ from oe_geoutils.utils import convert_wktelement_to_geojson
 from oe_geoutils.utils import epsg
 from oe_geoutils.utils import get_srid_from_geojson
 from oe_geoutils.utils import transform_projection
-from oe_utils.search.indexer import Indexer
 from oe_utils.search.searchengine import SearchEngine
-from oe_utils.utils import dict_utils
 from oe_utils.utils.db_utils import db_session
-from oeauth import parse_settings
 from oeauth.openid import OpenIDHelper
+from fastapi import FastAPI
 from pytz import timezone
 from skosprovider.registry import Registry
 
+from app.core.config import Settings as AppSettings
+from app.core.config import get_settings
+from app.search.indexer import Indexer
 from app.models import Plan
 from app.skos import fill_registry
 
 log = logging.getLogger(__name__)
 timezone_CET = timezone("CET")
 
-index_settings_keys = {
-    "sqlalchemy.url",
-    "administratievegrenzen.url",
-    "idservice.url",
-}
+def _prepare_settings_for_index(settings: AppSettings | Mapping[str, Any]) -> dict[str, Any]:
+    """
+    Build a settings dictionary with the legacy keys expected by the search/index
+    code while supporting values loaded via the FastAPI `Settings` object.
+    """
+    if isinstance(settings, Mapping):
+        combined: dict[str, Any] = dict(settings)
+    elif hasattr(settings, "model_dump"):
+        base_settings = settings.model_dump()
+        extra_settings = getattr(settings, "model_extra", {})
+        combined = dict(extra_settings)
+        combined.update(base_settings)
+    else:
+        raise TypeError(
+            "Unsupported settings type; provide a Mapping or Settings instance."
+        )
 
-index_settings_key_prefixes = {
-    "oeauth.",
-    "redis.",
-    "searchengine.",
-    "storageprovider.",
-    "skos.",
-    "thesaurus.",
-    "idservice.url",
-}
+    prepared: dict[str, Any] = {}
+
+    for key, value in combined.items():
+        if value is None:
+            continue
+        prepared[key] = value
+        lower_key = key.lower()
+        prepared.setdefault(lower_key, value)
+        prepared.setdefault(lower_key.replace("_", "."), value)
+        upper_key = key.upper()
+        prepared.setdefault(upper_key, value)
+        prepared.setdefault(upper_key.replace(".", "_"), value)
+        prepared.setdefault(lower_key.replace(".", "_"), value)
+
+    if "sqlalchemy.url" not in prepared:
+        database_url = (
+            prepared.get("DATABASE_URL")
+            or prepared.get("database.url")
+            or prepared.get("sqlalchemy_url")
+        )
+        if database_url:
+            prepared["sqlalchemy.url"] = database_url
+
+    prepared.setdefault("redis.max_connections", 1)
+
+    return prepared
 
 
-def _prepare_settings_for_index(settings):
-    settings = dict_utils.filter_flat_dict(
-        settings,
-        filter_prefixes=index_settings_key_prefixes,
-        filter_keys=index_settings_keys,
-        exclude_keys=["redis.sessions.client_callable"],
-        exclude_suffixes=[".connection_pool"],
+def _create_openid_helper(settings: Mapping[str, Any]) -> OpenIDHelper:
+    def _require(key: str) -> Any:
+        try:
+            return settings[key]
+        except KeyError as exc:
+            raise KeyError(f"Missing required setting '{key}' for OpenIDHelper") from exc
+
+    cache_kwargs = {
+        "cache.backend": settings.get("oeauth.cache.backend"),
+        "cache.arguments.host": settings.get("oeauth.cache.arguments.host"),
+        "cache.arguments.redis.expiration.time": settings.get(
+            "oeauth.cache.arguments.redis.expiration.time"
+        ),
+        "cache.arguments.distributed_lock": settings.get(
+            "oeauth.cache.arguments.distributed_lock"
+        ),
+        "cache.arguments.thread.local.lock": settings.get(
+            "oeauth.cache.arguments.thread.local.lock"
+        ),
+        "cache.arguments.lock.timeout": settings.get(
+            "oeauth.cache.arguments.lock.timeout"
+        ),
+        "cache.expiration.time": settings.get("oeauth.cache.expiration.time"),
+    }
+    filtered_cache_kwargs = {
+        key: value for key, value in cache_kwargs.items() if value is not None
+    }
+
+    return OpenIDHelper(
+        client_id=_require("oeauth.client_id"),
+        client_secret=_require("oeauth.client_secret"),
+        systemuser_secret=_require("oeauth.systemuser_secret"),
+        keycloak_public_key=settings.get("oeauth.keycloak_public_key"),
+        **filtered_cache_kwargs,
     )
-    settings.update({"redis.max_connections": 1})
-
-    return settings
 
 
 def encode_beheersplan(obj):
@@ -233,18 +287,22 @@ def delete_beheersplan_from_index(search_engine, _id):
 
 def index_operation(index_new, index_dirty, index_deleted, settings):
     log.info("starting index operation")
+    prepared_settings = (
+        settings
+        if isinstance(settings, dict)
+        else _prepare_settings_for_index(settings)
+    )
     skos_registry = Registry()
     fill_registry(skos_registry, settings)
     # init_caches(settings)
     with db_session(settings) as dbsession:
         search_engine = SearchEngine(
-            settings["ELASTICSEARCH_URL"],
-            settings["ELASTICSEARCH_URL"],
+            prepared_settings["ELASTICSEARCH_URL"],
+            prepared_settings["SEARCHENGINE.INDEX"],
             es_version="8",
-            api_key=settings["ELASTICSEARCH_API_KEY"],
+            api_key=prepared_settings.get("ELASTICSEARCH_API_KEY"),
         )
-        kwargs = parse_settings(settings)
-        open_id_helper = OpenIDHelper(**kwargs)
+        open_id_helper = _create_openid_helper(prepared_settings)
         for n in itertools.chain(index_new, index_dirty):
             index_beheersplan(
                 search_engine,
@@ -252,16 +310,22 @@ def index_operation(index_new, index_dirty, index_deleted, settings):
                 n,
                 open_id_helper,
                 skos_registry,
-                settings,
+                prepared_settings,
             )
         for d in index_deleted:
             delete_beheersplan_from_index(search_engine, d)
 
 
-def includeme(config):
-    config.registry.indexer = Indexer(
-        _prepare_settings_for_index(config.registry.settings),
+def setup_indexer(
+    app: FastAPI, settings: AppSettings | Mapping[str, Any] | None = None
+) -> Indexer:
+    configuration = _prepare_settings_for_index(settings or get_settings())
+    indexer = Indexer(
+        configuration,
         index_operation,
-        "plannen.search.index.index_operation",
+        "app.search.index.index_operation",
         Plan,
     )
+    app.state.indexer = indexer
+
+    return indexer
