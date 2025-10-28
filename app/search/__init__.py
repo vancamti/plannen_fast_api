@@ -109,13 +109,3 @@ def fix_aggregations(aggregations):
         year["key"] = year["key_as_string"]
     return aggregations
 
-
-def includeme(config):
-    config.add_request_method(get_search_helper, "search_helper", reify=True)
-    search_engine = SearchEngine(
-        config.registry.settings["ELASTICSEARCH_URL"],
-        config.registry.settings["ELASTICSEARCH_URL"],
-        es_version="8",
-        api_key=config.registry.settings["ELASTICSEARCH_API_KEY"],
-    )
-    config.registry.registerUtility(search_engine, ISearchEngine)

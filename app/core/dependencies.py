@@ -7,6 +7,7 @@ from typing import TypeVar
 from fastapi import Depends
 from fastapi import FastAPI
 from fastapi import HTTPException
+from oe_utils.search.searchengine import SearchEngine
 from oeauth.openid import OpenIDHelper
 from redis import Redis
 from sqlalchemy import create_engine
@@ -38,6 +39,7 @@ _content_manager: ContentManager | None = None
 _token_provider: OpenIDHelper | None = None
 _indexer: Indexer | None = None
 _redis: Redis | None = None
+_search_engine: SearchEngine | None = None
 
 def _redis_from_settings() -> Redis:
     """
@@ -74,7 +76,7 @@ class DBSessionMiddleware(BaseHTTPMiddleware):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize services on startup and cleanup on shutdown."""
-    global _storage_provider, _content_manager, _token_provider, _indexer, _redis
+    global _storage_provider, _content_manager, _token_provider, _indexer, _redis, _search_engine
 
     # Initialize Redis (shared pool-managed client)
     _redis = _redis_from_settings()
@@ -114,6 +116,14 @@ async def lifespan(app: FastAPI):
 
     # Initialize search indexer for use in request lifecycle
     _indexer = setup_indexer(app, settings)
+
+    # Initialize search engine
+    _search_engine = SearchEngine(
+            settings.ELASTICSEARCH_URL,
+            settings.ELASTICSEARCH_INDEX,
+            es_version="8",
+            api_key=settings.ELASTICSEARCH_API_KEY,
+        )
 
     yield  # Application runs here
 
@@ -160,6 +170,10 @@ def get_indexer() -> Indexer:
         raise HTTPException(status_code=503, detail="Indexer not initialized")
     return _indexer
 
+def get_searchengine() -> SearchEngine:
+    if _search_engine is None:
+        raise HTTPException(status_code=503, detail="Search engine not initialized")
+    return _search_engine
 
 T = TypeVar("T")
 

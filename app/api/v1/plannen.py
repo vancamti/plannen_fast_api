@@ -1,11 +1,13 @@
 import re
 from io import BytesIO
+from typing import Annotated
 from typing import List
 from zipfile import ZipFile
 
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException
+from fastapi import Query
 from fastapi import Request
 from fastapi import UploadFile
 from fastapi import status
@@ -37,6 +39,8 @@ from app.schemas.errors import NotFoundResponse
 from app.schemas.plannen import PlanCreate
 from app.schemas.plannen import PlanResponse
 from app.schemas.plannen import PlanUpdate
+from app.schemas.query import FilterParams
+from app.schemas.query import get_filter_query
 from app.services.plannen import PlanService
 from app.storage.conent_manager import ContentManager
 
@@ -62,9 +66,9 @@ def get_plan(request: Request, plan_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/", response_model=List[PlanResponse])
-def get_plannen(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def get_plannen(filter_query: FilterParams = Depends(get_filter_query)):
     """Get list of plannen."""
-    return PlanService.get_plannen(db=db, skip=skip, limit=limit)
+    return PlanService.get_plannen()
 
 
 @router.put(

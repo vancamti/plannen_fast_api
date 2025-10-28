@@ -2,7 +2,7 @@ from collections.abc import Generator
 from pathlib import Path
 import sys
 
-from app.core.db import get_db
+from app.core.dependencies import get_db
 from app.models import Base
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
