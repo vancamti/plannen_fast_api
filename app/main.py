@@ -1,26 +1,24 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.core.dependencies import DBSessionMiddleware
-from app.models.listeners import *  # noqa: F401
 from app.api.v1 import plannen
 from app.constants import settings
+from app.core.dependencies import DBSessionMiddleware
 from app.core.dependencies import lifespan
 from app.exceptions import register_exception_handlers
+from app.models.listeners import receive_after_flush  # noqa: F401
+from app.models.listeners import receive_after_flush_delete  # noqa: F401
 from app.openapi.schema import apply_custom_openapi
 
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     debug=settings.DEBUG,
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 register_exception_handlers(app)
 apply_custom_openapi(
-    app,
-    title="Plannen API",
-    version="1.0.0",
-    description="Plannen API"
+    app, title="Plannen API", version="1.0.0", description="Plannen API"
 )
 
 # Configure CORS

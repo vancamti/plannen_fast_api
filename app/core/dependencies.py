@@ -20,7 +20,6 @@ from storageprovider.client import StorageProviderClient
 from storageprovider.providers.minio import MinioProvider
 
 from app.constants import settings
-from app.core.config import get_settings
 from app.models import Plan
 from app.models import PlanBestand
 from app.models import PlanStatus
@@ -41,9 +40,11 @@ _indexer: Indexer | None = None
 _redis: Redis | None = None
 _search_engine: SearchEngine | None = None
 
+
 def _redis_from_settings() -> Redis:
     """
-    Prefer a full REDIS_URL; fall back to host/port/db if that’s how your settings are structured.
+    Prefer a full REDIS_URL; fall back to host/port/db
+    if that’s how your settings are structured.
     """
     return Redis.from_url(
         settings.REDIS_SESSIONS_URL,
@@ -75,8 +76,9 @@ class DBSessionMiddleware(BaseHTTPMiddleware):
 # Dependency injection via FastAPI's lifespan event
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize services on startup and cleanup on shutdown."""
-    global _storage_provider, _content_manager, _token_provider, _indexer, _redis, _search_engine
+    """Initialize services on startup
+    and cleanup on shutdown."""
+    global _storage_provider, _content_manager, _token_provider, _indexer, _redis, _search_engine  # NoQa: B950
 
     # Initialize Redis (shared pool-managed client)
     _redis = _redis_from_settings()
@@ -90,12 +92,12 @@ async def lifespan(app: FastAPI):
         **{
             "cache.backend": settings.OEAUTH_CACHE_BACKEND,
             "cache.arguments.host": settings.OEAUTH_CACHE_ARGUMENTS_HOST,
-            "cache.arguments.redis.expiration.time": settings.OEAUTH_CACHE_ARGUMENTS_REDIS_EXPIRATION_TIME,
-            "cache.arguments.distributed_lock": settings.OEAUTH_CACHE_ARGUMENTS_DISTRIBUTED_LOCK,
-            "cache.arguments.thread.local.lock": settings.OEAUTH_CACHE_ARGUMENTS_THREAD_LOCAL_LOCK,
-            "cache.arguments.lock.timeout": settings.OEAUTH_CACHE_ARGUMENTS_LOCK_TIMEOUT,
-            "cache.expiration.time": settings.OEAUTH_CACHE_EXPIRATION_TIME,
-        }
+            "cache.arguments.redis.expiration.time": settings.OEAUTH_CACHE_ARGUMENTS_REDIS_EXPIRATION_TIME,  # noqa: B950
+            "cache.arguments.distributed_lock": settings.OEAUTH_CACHE_ARGUMENTS_DISTRIBUTED_LOCK,  # noqa: B950
+            "cache.arguments.thread.local.lock": settings.OEAUTH_CACHE_ARGUMENTS_THREAD_LOCAL_LOCK,  # noqa: B950
+            "cache.arguments.lock.timeout": settings.OEAUTH_CACHE_ARGUMENTS_LOCK_TIMEOUT,  # noqa: B950
+            "cache.expiration.time": settings.OEAUTH_CACHE_EXPIRATION_TIME,  # noqa: B950
+        },
     )
 
     # Initialize storage provider
@@ -119,11 +121,11 @@ async def lifespan(app: FastAPI):
 
     # Initialize search engine
     _search_engine = SearchEngine(
-            settings.ELASTICSEARCH_URL,
-            settings.ELASTICSEARCH_INDEX,
-            es_version="8",
-            api_key=settings.ELASTICSEARCH_API_KEY,
-        )
+        settings.ELASTICSEARCH_URL,
+        settings.ELASTICSEARCH_INDEX,
+        es_version="8",
+        api_key=settings.ELASTICSEARCH_API_KEY,
+    )
 
     yield  # Application runs here
 
@@ -138,6 +140,7 @@ async def lifespan(app: FastAPI):
     _token_provider = None
     _indexer = None
     _redis = None
+    _search_engine = None
 
 
 # Dependency functions
@@ -170,22 +173,24 @@ def get_indexer() -> Indexer:
         raise HTTPException(status_code=503, detail="Indexer not initialized")
     return _indexer
 
+
 def get_searchengine() -> SearchEngine:
     if _search_engine is None:
         raise HTTPException(status_code=503, detail="Search engine not initialized")
     return _search_engine
 
+
 T = TypeVar("T")
 
 
 def get_db(
-        content_manager: "ContentManager" = Depends(get_content_manager),
-        redis: Redis = Depends(get_redis),
-        indexer: Indexer = Depends(get_indexer)
+    content_manager: "ContentManager" = Depends(get_content_manager),
+    redis: Redis = Depends(get_redis),
+    indexer: Indexer = Depends(get_indexer),
 ):
     """Dependency to get database session."""
     db_session = SessionLocal()
-    db_session.info['content_manager'] = content_manager
+    db_session.info["content_manager"] = content_manager
     indexer.register_session(db_session, redis)
 
     try:
@@ -195,9 +200,7 @@ def get_db(
 
 
 def get_object_or_404(
-        model: Type[T],
-        id_field: str = "id",
-        error_message: Optional[str] = None
+    model: Type[T], id_field: str = "id", error_message: Optional[str] = None
 ) -> Callable[[int, Session], T]:
     """
     Generic dependency to get an object by ID or raise 404 if not found.
@@ -207,21 +210,13 @@ def get_object_or_404(
     :return:
     """
 
-    def dependency(
-            object_id: int,
-            db: Session = Depends(get_db)
-    ) -> T:
-        query = db.query(model).filter(
-            getattr(model, id_field) == object_id
-        )
+    def dependency(object_id: int, db: Session = Depends(get_db)) -> T:
+        query = db.query(model).filter(getattr(model, id_field) == object_id)
         obj = query.first()
 
         if obj is None:
             msg = error_message or f"{model.__name__} with id {object_id} not found"
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=msg
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg)
 
         return obj
 

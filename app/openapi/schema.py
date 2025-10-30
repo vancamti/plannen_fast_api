@@ -1,11 +1,21 @@
-from fastapi.openapi.utils import get_openapi
 from fastapi import FastAPI
+from fastapi.openapi.utils import get_openapi
 
-def apply_custom_openapi(app: FastAPI, *, title: str = "My API", version: str = "1.0.0", description: str = "Custom error codes") -> None:
+
+def apply_custom_openapi(
+    app: FastAPI,
+    *,
+    title: str = "My API",
+    version: str = "1.0.0",
+    description: str = "Custom error codes",
+) -> None:
     """
-    Patch app.openapi to generate a schema where validation errors are documented as 400 instead of 422.
-    Call this after routers are included so routes are complete when the schema is generated.
+    Patch app.openapi to generate a schema where
+    validation errors are documented as 400 instead of 422.
+    Call this after routers are included so
+    routes are complete when the schema is generated.
     """
+
     def custom_openapi():
         if app.openapi_schema:
             return app.openapi_schema

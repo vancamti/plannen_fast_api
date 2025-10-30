@@ -1,5 +1,6 @@
 import enum
 
+
 # from app import schemas
 
 
@@ -11,12 +12,6 @@ class Status(enum.Enum):
     def __init__(self, id_, naam):
         self.id = id_
         self.naam = naam
-
-    # def to_model(self) -> schemas.StatusType:
-    #     return schemas.StatusType(
-    #         id=self.id,
-    #         naam=self.naam,
-    #     )
 
     @classmethod
     def from_id(cls, type_id):

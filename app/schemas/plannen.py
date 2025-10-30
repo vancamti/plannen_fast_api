@@ -4,6 +4,7 @@ from datetime import date
 from datetime import datetime
 from typing import Annotated
 from typing import List
+from typing import Literal
 from typing import Optional
 
 from minio.error import MinioException
@@ -11,7 +12,6 @@ from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import HttpUrl
-from pydantic import computed_field
 from pydantic import field_validator
 from pydantic import model_validator
 from pydantic_core.core_schema import ValidationInfo
@@ -62,8 +62,8 @@ class LocatieElementResponse(LocatieElementBase):
 
 
 class BestandBase(BaseModel):
-    naam : Annotated[str, Field(min_length=1)]
-    bestandssoort_id : int
+    naam: Annotated[str, Field(min_length=1)]
+    bestandssoort_id: int
     temporary_storage_key: Annotated[Optional[str], Field(min_length=1)] = None
     mime: str
 
@@ -72,7 +72,6 @@ class BestandBase(BaseModel):
     def bestandssoort_id_validator(cls, value: str) -> str:
         Bestandssoort.from_id(value)
         return value
-
 
     @field_validator("naam", mode="before")
     @classmethod
@@ -89,16 +88,15 @@ class BestandBase(BaseModel):
 
 
 class BestandCreate(BaseModel):
-    naam : Annotated[str, Field(min_length=1)]
-    bestandssoort_id : int
+    naam: Annotated[str, Field(min_length=1)]
+    bestandssoort_id: int
     temporary_storage_key: Annotated[str, Field(min_length=1)]
     mime: str
 
-
     @model_validator(mode="before")
     def temp_key_validator(self, info: ValidationInfo):
-        storage_provider = info.context.get('storageprovider')
-        content_manager = info.context.get('content_manager')
+        storage_provider = info.context.get("storageprovider")
+        content_manager = info.context.get("content_manager")
         try:
             metadata = storage_provider.get_object_metadata(
                 container_key=content_manager.temp_container,
@@ -108,7 +106,7 @@ class BestandCreate(BaseModel):
         except MinioException as me:
             raise ValueError(repr(me))
 
-        self["mime"] = metadata.get('Content-Type', 'application/octet-stream')
+        self["mime"] = metadata.get("Content-Type", "application/octet-stream")
 
         return self
 
@@ -120,6 +118,7 @@ class BestandUpdate(BestandBase):
 class BestandResponse(BestandBase):
     id: int
     plan_id: int
+
 
 class Label(BaseModel):
     label: Optional[str] = None
@@ -243,3 +242,56 @@ class PlanResponse(PlanBase):
     self: str
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class GeometryList(BaseModel):
+    type: Literal["Polygon"]
+    # GeoJSON Polygon: [[[lon, lat], ...]]
+    coordinates: List[List[List[float]]]
+
+
+class SystemFieldsList(BaseModel):
+    created_at: datetime
+    updated_at: datetime
+
+
+class StatusList(BaseModel):
+    datum: datetime
+    aanpasser_uri: HttpUrl
+    aanpasser_omschrijving: str
+    status: int
+    actief: bool
+
+
+class PlanListResponse(BaseModel):
+    id: int
+    uri: HttpUrl
+    self_url: HttpUrl = Field(alias="self")
+    onderwerp: str
+
+    startdatum: date
+    einddatum: date
+    datum_goedkeuring: date
+
+    beheerscommissie: bool
+    geometrie: GeometryList
+
+    plantype: str
+    plantype_naam: str
+    bestanden: str
+
+    erfgoedobjecten: List[HttpUrl]
+    primair_bestand: Optional[str] = (
+        None  # null in sample; change to HttpUrl if it will be a URL
+    )
+
+    systemfields: SystemFields
+    status: StatusList
+    actief: bool
+
+    model_config = {
+        "populate_by_name": True,  # allow using self_url when creating/exporting
+        "use_enum_values": True,
+        "str_strip_whitespace": True,
+        "extra": "ignore",  # ignore unexpected fields
+    }

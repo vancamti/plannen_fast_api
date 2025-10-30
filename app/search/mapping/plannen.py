@@ -29,27 +29,20 @@ beheersplannen_mapping = {
         },
         "aanduidingsobjecttypes": {
             "properties": {
-                "id": {
-                    "type": "long"
-                },
+                "id": {"type": "long"},
                 "naam": {
                     "type": "text",
                     "fields": {
                         "keyword": {
                             "type": "keyword",
-                            "normalizer": "keyword_lowercase"
+                            "normalizer": "keyword_lowercase",
                         }
-                    }
+                    },
                 },
                 "uri": {
                     "type": "text",
-                    "fields": {
-                        "keyword": {
-                            "type": "keyword",
-                            "ignore_above": 256
-                        }
-                    }
-                }
+                    "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                },
             }
         },
         "startdatum": {"type": "date", "format": "date"},
@@ -107,45 +100,30 @@ beheersplannen_mapping = {
 }
 
 
-def map_es_beheersplannen_result(result, settings=None):
-    settings = {} if settings is None else settings
-    _uri = settings.get("plannen.uri", "https://id.erfgoed.net/plannen/{0}")
-    _self = settings.get(
-        "plannen.self",
-        lambda r, id, **kwargs: "https://plannen.onroerenderfgoed.be/plannen/{0}".format(
-            id
-        ),
-    )
+def map_es_beheersplannen_result(self_url, result, settings):
+    _uri = settings.PLANNEN_URI
     plannen = []
     for h in result["hits"]["hits"]:
         data = h["_source"]
         plannen.append(
             {
                 "id": data["id"],
-                "uri": _uri.format(data["id"]),
-                "self": _self("beheersplan", id=(data["id"])),
-                "onderwerp": data["onderwerp"] if "onderwerp" in data else "",
-                "startdatum": data["startdatum"] if "startdatum" in data else "",
-                "einddatum": data["einddatum"] if "einddatum" in data else "",
-                "datum_goedkeuring": data["datum_goedkeuring"]
-                if "datum_goedkeuring" in data
-                else "",
-                "beheerscommissie": data["beheerscommissie"]
-                if "beheerscommissie" in data
-                else "",
-                "geometrie": data["geometrie"] if "geometrie" in data else "",
-                "plantype": data["plantype"] if "plantype" in data else "",
-                "plantype_naam": data["plantype_naam"] if "plantype_naam" in data else "",
-                "bestanden": data["bestanden"] if "bestanden" in data else "",
-                "erfgoedobjecten": data["erfgoedobjecten"]
-                if "erfgoedobjecten" in data
-                else "",
-                "primair_bestand": data["primair_bestand"]
-                if "primair_bestand" in data
-                else None,
-                "systemfields": data["systemfields"] if "systemfields" in data else None,
-                "status": data["status"] if "status" in data else None,
-                "actief": data["status"]["actief"] if "status" in data else None,
+                "uri": _uri.format(id=data["id"]),
+                "self": str(self_url).format(id=data["id"]),
+                "onderwerp": data.get("onderwerp", ""),
+                "startdatum": data.get("startdatum", ""),
+                "einddatum": data.get("einddatum", ""),
+                "datum_goedkeuring": data.get("datum_goedkeuring", ""),
+                "beheerscommissie": data.get("beheerscommissie", ""),
+                "geometrie": data.get("geometrie", ""),
+                "plantype": data.get("plantype", ""),
+                "plantype_naam": data.get("plantype_naam", ""),
+                "bestanden": data.get("bestanden", ""),
+                "erfgoedobjecten": data.get("erfgoedobjecten", ""),
+                "primair_bestand": data.get("primair_bestand"),
+                "systemfields": data.get("systemfields"),
+                "status": data.get("status"),
+                "actief": data.get("status", {}).get("actief"),
             }
         )
     return plannen

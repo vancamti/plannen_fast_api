@@ -12,16 +12,20 @@ from fastapi import Request
 from fastapi import UploadFile
 from fastapi import status
 from minio.error import MinioException
+from oe_utils.search import parse_sort_string
+from oe_utils.search.searchengine import SearchEngine
 from oeauth.openid import OpenIDHelper
 from sqlalchemy.orm import Session
 from starlette.responses import Response
 from starlette.responses import StreamingResponse
 from storageprovider.client import StorageProviderClient
 
+from app.constants import settings
 from app.core.dependencies import get_bestand_or_404
 from app.core.dependencies import get_content_manager
 from app.core.dependencies import get_db
 from app.core.dependencies import get_plan_or_404
+from app.core.dependencies import get_searchengine
 from app.core.dependencies import get_status_or_404
 from app.core.dependencies import get_storage_provider
 from app.core.dependencies import get_token_provider
@@ -34,13 +38,17 @@ from app.models import PlanStatus
 from app.schemas import BestandCreate
 from app.schemas import BestandResponse
 from app.schemas import BestandUpdate
+from app.schemas import PlanListResponse
+from app.schemas import StatusCreate
 from app.schemas import StatusResponse
 from app.schemas.errors import NotFoundResponse
 from app.schemas.plannen import PlanCreate
 from app.schemas.plannen import PlanResponse
 from app.schemas.plannen import PlanUpdate
 from app.schemas.query import FilterParams
-from app.schemas.query import get_filter_query
+from app.search import beheersplan_aggregations
+from app.search.mapping.plannen import map_es_beheersplannen_result
+from app.search.query import PlannenQueryBuilder
 from app.services.plannen import PlanService
 from app.storage.conent_manager import ContentManager
 
@@ -65,10 +73,27 @@ def get_plan(request: Request, plan_id: int, db: Session = Depends(get_db)):
     return plan_db_to_pydantic(db_plan, request)
 
 
-@router.get("/", response_model=List[PlanResponse])
-def get_plannen(filter_query: FilterParams = Depends(get_filter_query)):
+@router.get("/", response_model=List[PlanListResponse])
+def get_plannen(
+        query_params: Annotated[FilterParams, Query()],
+        request: Request,
+        search_engine: SearchEngine = Depends(get_searchengine),
+):
     """Get list of plannen."""
-    return PlanService.get_plannen()
+    query_params = {k: v for k, v in dict(query_params).items() if v is not None}
+    sort = parse_sort_string(query_params.get("sort", "onderwerp.raw"))
+    self_url = request.url_for("get_plan", plan_id="{id}")
+    beheersplannen_dto = search_engine.query(
+        query_params=query_params,
+        sort=sort,
+        settings=settings,
+        aggregations=beheersplan_aggregations,
+        load_searchquery_param_func=PlannenQueryBuilder(),
+        mapper=map_es_beheersplannen_result,
+        mapper_args=[self_url],
+    )
+
+    return beheersplannen_dto.data
 
 
 @router.put(
@@ -77,13 +102,13 @@ def get_plannen(filter_query: FilterParams = Depends(get_filter_query)):
     responses={
         "200": {"model": PlanResponse, "description": "The updated plan"},
         "404": {"model": NotFoundResponse, "description": "Plan not found"},
-    }
+    },
 )
 def update_plan(
         request: Request,
         plan: PlanUpdate,
         existing: Plan = Depends(get_plan_or_404),
-        db: Session = Depends(get_db)
+        db: Session = Depends(get_db),
 ):
     """Update an existing plan."""
     db_plan = PlanService.update_plan(db=db, existing=existing, plan=plan)
@@ -125,7 +150,7 @@ def add_bestand(
         context={
             "content_manager": content_manager,
             "storageprovider": storageprovider,
-        }
+        },
     )
     bestand = PlanService.add_bestand(db, plan_id, bestand_pydantic)
     return bestand_db_to_pydantic(bestand)
@@ -135,7 +160,8 @@ def add_bestand(
     "/{plan_id}/bestanden/{object_id}",
     responses={
         200: {
-            "description": "Bestand content in either JSON or binary depending on Accept header.",
+            "description": "Bestand content in either JSON "
+                           "or binary depending on Accept header.",
             "content": {
                 "application/octet-stream": {
                     # For binary responses, OpenAPI uses type=string, format=binary
@@ -154,14 +180,14 @@ def get_bestand(
 ):
     try:
         iter_content = content_manager.get_object_streaming(plan_id, bestand.id)
-        bestandsnaam = re.sub('[\\\\/:*?"<>| ]', '_', bestand.naam)
-        content_disposition = f'attachment; filename="{bestandsnaam.encode("utf-8").decode("latin-1")}"'
+        bestandsnaam = re.sub('[\\\\/:*?"<>| ]', "_", bestand.naam)
+        content_disposition = (
+            f'attachment; filename="{bestandsnaam.encode("utf-8").decode("latin-1")}"'
+        )
         return StreamingResponse(
             content=iter(iter_content),
             media_type=bestand.mime,
-            headers={
-                "Content-Disposition": content_disposition
-            }
+            headers={"Content-Disposition": content_disposition},
         )
     except MinioException as me:
         raise HTTPException(detail=repr(me), status_code=status.HTTP_404_NOT_FOUND)
@@ -172,7 +198,8 @@ def get_bestand(
     response_model=List[BestandResponse],
     responses={
         200: {
-            "description": "Bestanden in either JSON or ZIP depending on Accept header.",
+            "description": "Bestanden in either JSON "
+                           "or ZIP depending on Accept header.",
             "content": {
                 "application/zip": {
                     # For binary responses, OpenAPI uses type=string, format=binary
@@ -184,7 +211,8 @@ def get_bestand(
     },
 )
 def get_bestanden(
-        request: Request, object_id: int,
+        request: Request,
+        object_id: int,
         plan: Plan = Depends(get_plan_or_404),
         storage_provider: StorageProviderClient = Depends(get_storage_provider),
         _token_provider: OpenIDHelper = Depends(get_token_provider),
@@ -195,8 +223,7 @@ def get_bestanden(
         return [bestand_db_to_pydantic(bestand) for bestand in plan.bestanden]
     elif "application/zip" in accept:
         translations = {
-            str(bestand.id).zfill(3): bestand.naam
-            for bestand in plan.bestanden
+            str(bestand.id).zfill(3): bestand.naam for bestand in plan.bestanden
         }
         if not translations:
             # create an empty zip file
@@ -209,16 +236,18 @@ def get_bestanden(
             zip_data = storage_provider.get_container_data(
                 str(object_id),
                 system_token=_token_provider.get_system_token(),
-                translations=translations
+                translations=translations,
             )
         return Response(
             content=zip_data,
-            media_type='application/zip',
+            media_type="application/zip",
             headers={
-                "Content-Disposition": f"attachment; filename=plan_{object_id}_bestanden.zip",
+                "Content-Disposition": (
+                    f"attachment; filename=plan_{object_id}_bestanden.zip"
+                ),
                 "content-type": "application/zip",
                 "content-length": str(len(zip_data)),
-            }
+            },
         )
 
 
@@ -228,42 +257,52 @@ def get_bestanden(
     responses={
         "200": {"model": PlanResponse, "description": "The updated plan"},
         "404": {"model": NotFoundResponse, "description": "Plan not found"},
-    }
+    },
 )
 def update_bestand(
         request: Request,
         bestand: BestandUpdate,
         existing: PlanBestand = Depends(get_bestand_or_404),
-        db: Session = Depends(get_db)
+        db: Session = Depends(get_db),
 ):
     """Update an existing plan."""
     db_plan = PlanService.update_bestand(db=db, existing=existing, bestand_data=bestand)
     return bestand_db_to_pydantic(db_plan, request)
 
 
-@router.delete("/{plan_id}/bestanden/{object_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_betand(existing: PlanBestand = Depends(get_bestand_or_404), db: Session = Depends(get_db)):
+@router.delete(
+    "/{plan_id}/bestanden/{object_id}", status_code=status.HTTP_204_NO_CONTENT
+)
+def delete_betand(
+        existing: PlanBestand = Depends(get_bestand_or_404), db: Session = Depends(get_db)
+):
     PlanService.delete_bestand(db=db, db_bestand=existing)
 
 
 @router.post(
-    "/plan/{object_id}/statussen",
+    "/{object_id}/statussen",
     response_model=StatusResponse,
-    status_code=status.HTTP_201_CREATED
+    status_code=status.HTTP_201_CREATED,
 )
-def create_status(request: Request, plan: PlanCreate, db: Session = Depends(get_db)):
+def create_status(
+        request: Request,
+        object_id: int,
+        status: StatusCreate,
+        db: Session = Depends(get_db)
+):
     """Create a new plan."""
-    db_plan = PlanService.create_plan(request=request, db=db, plan=plan)
-    return plan_db_to_pydantic(db_plan, request)
-
-    return bestand_db_to_pydantic(bestand)
+    db_plan = PlanService.add_status(db=db, plan_id=object_id, status=status)
+    return status_db_to_pydantic(db_plan, request)
 
 
 @router.get(
     "/{object_id}/statussen",
     response_model=List[StatusResponse],
     responses={
-        200: {"model": List[StatusResponse], "description": "List of statussen for the plan"},
+        200: {
+            "model": List[StatusResponse],
+            "description": "List of statussen for the plan",
+        },
         404: {"model": NotFoundResponse, "description": "Plan not found"},
     },
 )

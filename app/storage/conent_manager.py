@@ -1,4 +1,7 @@
-from typing import BinaryIO, Callable, Iterable, Union
+from typing import BinaryIO
+from typing import Callable
+from typing import Iterable
+from typing import Union
 
 from minio.error import MinioException
 from storageprovider.client import StorageProviderClient
@@ -27,9 +30,7 @@ class ContentManager:
             system_token=self.system_token(),
         )
 
-    def store_file_content_to_temp_location(
-        self, file_content: FileContent
-    ) -> str:
+    def store_file_content_to_temp_location(self, file_content: FileContent) -> str:
         return self.storage_provider.update_object_and_key(
             self.temp_container, file_content, system_token=self.system_token()
         )

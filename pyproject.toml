@@ -11,7 +11,7 @@ authors = [
 ]
 description = "plannen"
 requires-python = ">=3.10,<3.12"
-keywords = ["web", "pyramid", "wsgi"]
+keywords = ["web", "fastapi", "wsgi"]
 classifiers = [
     "Programming Language :: Python",
     "Framework :: Pyramid",
@@ -65,8 +65,6 @@ server = [
     "psycopg2==2.9.9"
 ]
 dev = [
-    "Sphinx==5.0.1",
-    "WebTest==3.0.0",
     "flake8==4.0.1",
     "hatchling==1.14.0",
     "psycopg2-binary==2.9.9",
@@ -74,12 +72,7 @@ dev = [
     "pyramid-debugtoolbar==4.9",
     "pytest-cov==7.0.0",
     "pytest==8.4.2",
-    "responses==0.25.8",
-    "respx==0.22.0",
-    "six==1.16.0",
-    "sphinx-rtd-theme==1.0.0",
-    "sphinxcontrib-httpdomain==1.8.0",
-    "sphinxcontrib-plantuml==0.23",
+
 ]
 private = [
     "oeauth @ git+ssh://git@github.com/OnroerendErfgoed/oeauth.git@2.10.0",
@@ -96,41 +89,6 @@ main = "plannen:main"
 [project.entry-points."gevent.plugins.monkey.did_patch_builtins"]
 psycopg2 = "plannen:patch_psycopg"
 
-##
-# Build tool specific
-##
-#[tool.hatch.build.targets.wheel.hooks.custom]
-#path = "build_hook.py"
-#
-#[tool.hatch.build.targets.sdist]
-## We do not need generated folders in the source distribution.
-## The source should contain everything to generate these.
-#exclude = [
-#    "/plannen_frontend/node_modules",
-#    "/plannen_frontend/static/css",
-#    "/plannen_frontend/cypress/screenshots",
-#    "/dist",
-#]
-
-[tool.hatch.build.targets.wheel]
-# In the wheel we want to have plannen in the root as a python module.
-packages = [
-    "/plannen",
-]
-# In the wheel we do not need the proces_frontend folder
-exclude = [
-    "/plannen_frontend"
-]
-# these folders are (partially) in gitignore and would otherwise not be part of the builds
-artifacts = [
-    "/plannen/static",
-    "/plannen/templates",
-]
-
-[project.scripts]
-initialize_beheersplannen_db = "fixtures.initializedb:main"
-clear_beheersplannen_db = "fixtures.cleardb:main"
-initialize_beheersplannen_es = "plannen.scripts.index_es:main"
 
 [tool.hatch.metadata]
 # This allows us to use github links as dependencies

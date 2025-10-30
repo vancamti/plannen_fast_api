@@ -1,20 +1,20 @@
+import sys
 from collections.abc import Generator
 from pathlib import Path
-import sys
+
+import anyio
+import httpx
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from app.core.dependencies import get_db
+from app.main import app
 from app.models import Base
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
-
-import pytest
-import anyio
-import httpx
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
-
-from app.main import app
 
 
 def pytest_configure(config: pytest.Config) -> None:

@@ -1,9 +1,6 @@
-from typing import Any
-from typing import Any
-from typing import Any
-from typing import List, Optional
+from typing import Optional
+
 from fastapi import Request
-from oe_geoutils.utils import convert_geojson_to_wktelement
 from sqlalchemy.orm import Session
 
 from app.mappers.plannen import pydantic_bestand_to_db
@@ -15,7 +12,8 @@ from app.models import PlanStatus
 from app.schemas import BestandCreate
 from app.schemas import BestandUpdate
 from app.schemas import StatusCreate
-from app.schemas.plannen import PlanCreate, PlanUpdate
+from app.schemas.plannen import PlanCreate
+from app.schemas.plannen import PlanUpdate
 
 
 class PlanService:
@@ -63,18 +61,24 @@ class PlanService:
         return True
 
     @staticmethod
-    def add_bestand(db: Session, plan_id: int, bestand: BestandCreate) -> PlanBestand | None:
+    def add_bestand(
+        db: Session, plan_id: int, bestand: BestandCreate
+    ) -> PlanBestand | None:
         """Add a bestand to a plan."""
-        bestand = pydantic_bestand_to_db(bestand,plan_id)
+        bestand = pydantic_bestand_to_db(bestand, plan_id)
         db.add(bestand)
         db.commit()
         db.refresh(bestand)
         return bestand
 
     @staticmethod
-    def update_bestand(db: Session, existing: PlanBestand, bestand_data: BestandUpdate) -> Optional[PlanBestand]:
+    def update_bestand(
+        db: Session, existing: PlanBestand, bestand_data: BestandUpdate
+    ) -> Optional[PlanBestand]:
         """Update a bestand of a plan."""
-        db_bestand = pydantic_bestand_to_db(bestand_data, existing.plan_id, existing=existing)
+        db_bestand = pydantic_bestand_to_db(
+            bestand_data, existing.plan_id, existing=existing
+        )
         db.add(db_bestand)
         db.commit()
         db.refresh(db_bestand)
@@ -85,10 +89,12 @@ class PlanService:
         """Delete a bestand from a plan."""
         db.delete(db_bestand)
         db.commit()
-        return True 
-    
+        return True
+
     @staticmethod
-    def add_status(db: Session, plan_id: int, status: StatusCreate) -> PlanStatus | None:
+    def add_status(
+        db: Session, plan_id: int, status: StatusCreate
+    ) -> PlanStatus | None:
         """Add a status to a plan."""
         status = pydantic_status_to_db(status, plan_id)
         db.add(status)

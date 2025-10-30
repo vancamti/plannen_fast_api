@@ -6,12 +6,12 @@ Create Date: 2025-10-20 16:56:49.257077
 
 """
 
-from typing import Sequence, Union
+from typing import Sequence
+from typing import Union
 
 import geoalchemy2
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "e110cfe725a6"
@@ -62,7 +62,6 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
-    # op.create_index('idx_plannen_geometrie', 'plannen', ['geometrie'], unique=False, postgresql_using='gist')
     op.create_table(
         "relatietypes",
         sa.Column("id", sa.String(length=32), nullable=False),

@@ -27,7 +27,7 @@ class PlannenQueryBuilder(QueryBuilder):
                 "aanduidingsobjecttype": [
                     "aanduidingsobjecttypes.naam.keyword",
                     "aanduidingsobjecttypes.uri.keyword",
-                ]
+                ],
             }
         )
         self.queryparam_to_filter_method.update(
@@ -41,8 +41,8 @@ class PlannenQueryBuilder(QueryBuilder):
         )
         self.text_boosted_fields = [{"*": 1}]
 
-    def add_user_filter(self, user_acls):
-        self.filters.append({"terms": {"acls": user_acls}})
+    # def add_user_filter(self, user_acls):
+    #     self.filters.append({"terms": {"acls": user_acls}})
 
     def _build_goedkeuring_van_filter(self, filter_value):
         return {
@@ -64,9 +64,7 @@ class PlannenQueryBuilder(QueryBuilder):
                     }
                 }
             }
-        return {
-            "range": {"einddatum": {"gte": (date.today()).strftime("%Y-%m-%d")}}
-        }
+        return {"range": {"einddatum": {"gte": (date.today()).strftime("%Y-%m-%d")}}}
 
     def _build_onderwerp_filter(self, value):
         return {
@@ -94,7 +92,7 @@ class PlannenQueryBuilder(QueryBuilder):
     #     self.query["simple_query_string"]["lenient"] = True
 
     def prepare_filters(self):
-        self.add_user_filter(self.user_acls)
+        # self.add_user_filter(self.user_acls)
         super().prepare_filters()
 
 
@@ -119,8 +117,8 @@ class ResourceQueryBuilder(QueryBuilder):
             )
         self.filters.append(filters[0] if len(filters) == 1 else self.or_(*filters))
 
-    def add_user_filter(self, user_acls):
-        self.filters.append({"terms": {"acls": user_acls}})
+    # def add_user_filter(self, user_acls):
+    #     self.filters.append({"terms": {"acls": user_acls}})
 
     def _build_concept_term(self, concept_name, concept, lower=False):
         filter_method = "match"

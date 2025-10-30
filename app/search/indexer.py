@@ -1,17 +1,14 @@
 import itertools as it
 import logging
 import uuid
-from contextlib import contextmanager
-from typing import Iterator
 
+from oe_utils.jobs import queue_job
+from oe_utils.search.searchengine import SearchEngine
 from oe_utils.utils.db_utils import db_session
 from requests import HTTPError
 from sqlalchemy import event
 from sqlalchemy import select
-from sqlalchemy.orm import Session, object_session
-
-from oe_utils.jobs import queue_job
-from oe_utils.search.searchengine import SearchEngine
+from sqlalchemy.orm import object_session
 
 log = logging.getLogger()
 
@@ -270,7 +267,8 @@ def _add_to_session_list(target, operation):
         log.info("%s: %s %s from index", operation, target, target.id)
     except (AttributeError, KeyError):
         log.warning(
-            "Trying to register a %s for indexing %s, but indexing sets are not present.",
+            "Trying to register a %s for indexing %s, "
+            "but indexing sets are not present.",
             target,
             operation,
         )

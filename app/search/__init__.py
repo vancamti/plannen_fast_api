@@ -1,8 +1,5 @@
 import logging
 
-from oe_utils.search.searchengine import ISearchEngine
-from oe_utils.search.searchengine import SearchEngine
-
 log = logging.getLogger(__name__)
 
 beheersplan_aggregations = {
@@ -108,4 +105,3 @@ def fix_aggregations(aggregations):
     for year in aggregations["jaar_goedkeuring"]["buckets"]:
         year["key"] = year["key_as_string"]
     return aggregations
-

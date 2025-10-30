@@ -90,7 +90,7 @@ def check_app_startup():
     try:
         from app.main import app
 
-        print(f"  ✓ Application loaded successfully")
+        print("  ✓ Application loaded successfully")
         print(f"  ✓ App name: {app.title}")
         print(f"  ✓ App version: {app.version}")
         return True

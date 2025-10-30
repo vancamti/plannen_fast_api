@@ -31,27 +31,19 @@ Er zijn extra optionele parameters:
 
 import abc
 import argparse
-import contextlib
 import logging
-import os
 import sys
 import time
 from copy import deepcopy
 from datetime import timedelta
 
 from dotenv import dotenv_values
-from dotenv import load_dotenv
 from elasticsearch8 import Elasticsearch
 from oe_utils.scripts import create_indexing_argument_parser
 from oe_utils.search.searchengine import SearchEngine
 from oe_utils.utils.db_utils import db_session
-from oeauth import parse_settings
 from oeauth.openid import OpenIDHelper
-from pyramid.paster import get_appsettings
-from pyramid.paster import setup_logging
 from skosprovider.registry import Registry
-from sqlalchemy import engine_from_config
-from sqlalchemy.orm import sessionmaker
 from storageprovider.client import StorageProviderClient
 from storageprovider.providers.minio import MinioProvider
 
@@ -62,7 +54,6 @@ from app.search.index import beheersplan_to_es_dict
 from app.search.mapping.plannen import beheersplannen_index
 from app.search.mapping.plannen import beheersplannen_mapping
 from app.skos import fill_registry
-
 
 log = logging.getLogger(__name__)
 erfgoedobjecten = {}
@@ -95,10 +86,12 @@ def init_argparse(args):
         "--batch-size",
         default=5000,
         type=int,
-        help="De maximum hoeveelheid objecten per keer worden opgehaald uit de database.",
+        help="De maximum hoeveelheid objecten per "
+        "keer worden opgehaald uit de database.",
     )
 
     return parser.parse_args(args)
+
 
 def load_settings(env_path=".env"):
     original_settings = dotenv_values(env_path)
@@ -107,6 +100,7 @@ def load_settings(env_path=".env"):
     for key in original_settings.keys():
         settings[key.lower()] = settings[key]
     return settings
+
 
 def fill_erfgoedobjecten(searchengine, plannen):
     eo_uris = set()
@@ -118,8 +112,8 @@ def fill_erfgoedobjecten(searchengine, plannen):
     erfgoedobjecten.update({hit["_source"]["uri"]: hit["_source"] for hit in hits})
 
 
-
 class Reindexer:
+
     def __init__(
         self,
         db_class,
@@ -230,9 +224,7 @@ class PlanReindexer(Reindexer):
         )
 
     def process_db_to_dict(self, plan, open_id_helper, skos_registry):
-        return beheersplan_to_es_dict(
-            plan, open_id_helper, skos_registry
-        )
+        return beheersplan_to_es_dict(plan, open_id_helper, skos_registry)
 
 
 def main(argv=sys.argv):  # pragma NO COVER
@@ -247,13 +239,13 @@ def main(argv=sys.argv):  # pragma NO COVER
         keycloak_public_key=c.settings.OEAUTH_KEYCLOAK_PUBLIC_KEY,
         **{
             "cache.backend": c.settings.OEAUTH_CACHE_BACKEND,
-            "cache.arguments.host": c.settings.OEAUTH_CACHE_ARGUMENTS_HOST,
-            "cache.arguments.redis.expiration.time": c.settings.OEAUTH_CACHE_ARGUMENTS_REDIS_EXPIRATION_TIME,
-            "cache.arguments.distributed_lock": c.settings.OEAUTH_CACHE_ARGUMENTS_DISTRIBUTED_LOCK,
-            "cache.arguments.thread.local.lock": c.settings.OEAUTH_CACHE_ARGUMENTS_THREAD_LOCAL_LOCK,
-            "cache.arguments.lock.timeout": c.settings.OEAUTH_CACHE_ARGUMENTS_LOCK_TIMEOUT,
-            "cache.expiration.time": c.settings.OEAUTH_CACHE_EXPIRATION_TIME,
-        }
+            "cache.arguments.host": c.settings.OEAUTH_CACHE_ARGUMENTS_HOST,  # noqa: B950
+            "cache.arguments.redis.expiration.time": c.settings.OEAUTH_CACHE_ARGUMENTS_REDIS_EXPIRATION_TIME,  # noqa: B950
+            "cache.arguments.distributed_lock": c.settings.OEAUTH_CACHE_ARGUMENTS_DISTRIBUTED_LOCK,  # noqa: B950
+            "cache.arguments.thread.local.lock": c.settings.OEAUTH_CACHE_ARGUMENTS_THREAD_LOCAL_LOCK,  # noqa: B950
+            "cache.arguments.lock.timeout": c.settings.OEAUTH_CACHE_ARGUMENTS_LOCK_TIMEOUT,  # noqa: B950
+            "cache.expiration.time": c.settings.OEAUTH_CACHE_EXPIRATION_TIME,  # noqa: B950
+        },
     )
     reindexer = PlanReindexer(settings)
     skos_registry = Registry()

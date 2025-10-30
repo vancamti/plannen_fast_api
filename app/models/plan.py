@@ -21,20 +21,38 @@ from sqlalchemy import Text
 from sqlalchemy import func
 from sqlalchemy import select
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import Session
-from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
+
+try:
+    from sqlalchemy.orm import Mapped, mapped_column
+except ImportError:  # pragma: no cover - fallback for pre-1.4 SQLAlchemy
+    from sqlalchemy import Column as _Column  # type: ignore
+
+    Mapped = Any  # type: ignore
+
+    def mapped_column(*args, **kwargs):  # type: ignore
+        return _Column(*args, **kwargs)
+
 
 from app import schemas
 from app.constants import settings
-from app.models import Base
-from app.models import enums
+from app.models import Base, enums
 
 log = logging.getLogger(__name__)
 timezone_CET = timezone("CET")
 
-Base.registry.type_annotation_map.update({enums.Status: Enum(enums.Status)})
+
+def _geometry_field():
+    geometry_kwargs = {"geometry_type": "MULTIPOLYGON", "srid": 31370}
+    try:
+        return Geometry(management=False, **geometry_kwargs)
+    except TypeError:  # pragma: no cover - fallback for older GeoAlchemy
+        return Geometry(**geometry_kwargs)
+
+
+if hasattr(Base, "registry") and hasattr(Base.registry, "type_annotation_map"):
+    Base.registry.type_annotation_map.update({enums.Status: Enum(enums.Status)})
 
 
 class Plan(Base):
@@ -48,9 +66,7 @@ class Plan(Base):
     startdatum: Mapped[date | None] = mapped_column(Date)
     einddatum: Mapped[date | None] = mapped_column(Date)
     beheerscommissie: Mapped[bool | None] = mapped_column(Boolean)
-    geometrie: Mapped[Any] = mapped_column(
-        Geometry(geometry_type="MULTIPOLYGON", srid=31370)
-    )
+    geometrie: Mapped[Any | None] = mapped_column(_geometry_field())
 
     relaties: Mapped[list[PlanRelatie]] = relationship(
         "PlanRelatie",
@@ -125,12 +141,10 @@ class Plan(Base):
     #
     @hybrid_property
     def plantype(self) -> PlanConcept | None:
-        return next((c for c in self.concepten if c.plankenmerk.id == "plantypes"), None)
-    #
-    # def filter_relaties(self, type_: str) -> list[PlanRelatie]:
-    #     """Filter de relaties van een plan volgens type."""
-    #     return [relatie for relatie in self.relaties if relatie.relatietype.id == type_]
-    #
+        return next(
+            (c for c in self.concepten if c.plankenmerk.id == "plantypes"), None
+        )
+
     @hybrid_property
     def status(self) -> PlanStatus | None:
         session = Session.object_session(self)
@@ -144,39 +158,6 @@ class Plan(Base):
             .limit(1)
         )
         return session.scalars(stmt).first()
-
-    # def before_flush_new(self, request, session: Session) -> None:
-    #     now = datetime.now(tz=timezone_CET)
-    #     if session.actor_uri:
-    #         log.debug("Adding info on actor_uri %s to plan.", session.actor_uri)
-    #
-    #     self.created_at = now
-    #     if session.actor_uri:
-    #         self.created_by_uri = session.actor_uri
-    #         self.updated_by_uri = session.actor_uri
-    #     if session.actor_omschrijving:
-    #         self.created_by_description = session.actor_omschrijving
-    #         self.updated_by_description = session.actor_omschrijving
-    #     self.updated_at = now
-    #
-    #     if len(self.statussen) == 0:
-    #         status = session.get(Status, 10)
-    #         if status is None:
-    #             return
-    #         plan_status = PlanStatus(status=status, datum=now)
-    #         if session.actor_uri:
-    #             plan_status.aanpasser_uri = session.actor_uri
-    #         if session.actor_omschrijving:
-    #             plan_status.aanpasser_omschrijving = session.actor_omschrijving
-    #         self.statussen.append(plan_status)
-    #
-    # def before_flush_dirty(self, request, session: Session) -> None:
-    #     now = datetime.now(tz=timezone_CET)
-    #     self.updated_at = now
-    #     if session.actor_uri:
-    #         self.updated_by_uri = session.actor_uri
-    #     if session.actor_omschrijving:
-    #         self.updated_by_description = session.actor_omschrijving
 
     def self(self) -> str:
         return settings.PLANNEN_URI
@@ -297,21 +278,6 @@ class PlanStatus(Base):
         return self.status.id > 50
 
 
-# def before_flush_new(self, request, session: Session) -> None:
-#     if session.actor_uri:
-#         log.debug("Adding info on actor %s to statussen.", session.actor_uri)
-#     self.datum = datetime.now(tz=timezone_CET)
-#     if session.actor_uri:
-#         self.aanpasser_uri = session.actor_uri
-#     if session.actor_omschrijving:
-#         self.aanpasser_omschrijving = session.actor_omschrijving
-#
-#     @hybrid_property
-#     def actief(self) -> bool:
-#         return self.status.actief
-#
-
-
 class PlanBestand(Base):
     """Stelt een koppeling tussen een plan en een bestand voor."""
 
@@ -334,7 +300,6 @@ class PlanBestand(Base):
     @bestand.setter
     def bestand(self, value: str) -> None:
         self.mime = value
-
 
     def after_flush_new(self, request, session):
         if self.temporary_storage_key is not None:
@@ -389,14 +354,6 @@ class PlanConcept(Base):
     )
 
 
-# def label(self, request) -> str:
-#     """Zoek een label voor dit concept."""
-#     prefix, scheme_id, concept_id = self.concept_uri.rsplit("/", 2)
-#     provider = request.skos_registry.get_provider(scheme_id.upper())
-#     concept = provider.get_by_id(concept_id)
-#     return concept.label() if concept else ""
-
-
 class Plankenmerk(Base):
     """Stelt een kenmerk van een plan voor."""
 
@@ -442,47 +399,3 @@ class LocatieElement(Base):
         "polymorphic_identity": "https://id.erfgoed.net/vocab/ontology#LocatieElement",
         "polymorphic_on": type,
     }
-
-
-#
-#
-# def _invoke(instance: Any, hook: str, request, session: Session) -> None:
-#     """Call hook on instance when available."""
-#     if hasattr(instance, hook):
-#         getattr(instance, hook)(request, session)
-
-
-# def session_before_flush(session: Session, request) -> None:
-#     for instance in list(session.new):
-#         _invoke(instance, "before_flush_new", request, session)
-#     for instance in list(session.dirty):
-#         _invoke(instance, "before_flush_dirty", request, session)
-#     for instance in list(session.deleted):
-#         _invoke(instance, "before_flush_deleted", request, session)
-#     for instance in it.chain(session.new, session.dirty, session.deleted):
-#         _invoke(instance, "before_flush", request, session)
-#
-#
-# def session_after_flush(session: Session, request) -> None:
-#     for instance in list(session.new):
-#         _invoke(instance, "after_flush_new", request, session)
-#     for instance in list(session.dirty):
-#         _invoke(instance, "after_flush_dirty", request, session)
-#     for instance in list(session.deleted):
-#         _invoke(instance, "after_flush_deleted", request, session)
-#     for instance in it.chain(session.new, session.dirty, session.deleted):
-#         _invoke(instance, "after_flush", request, session)
-
-
-# def session_persistent_to_deleted(session: Session, instance: Any, request) -> None:
-#     _invoke(instance, "persistent_to_deleted", request, session)
-#
-#
-# def register_listeners(session: Session, request) -> None:
-#     event.listen(session, "before_flush", lambda *_: session_before_flush(session, request))
-#     event.listen(session, "after_flush", lambda *_: session_after_flush(session, request))
-#     event.listen(
-#         session,
-#         "persistent_to_deleted",
-#         lambda _, instance: session_persistent_to_deleted(session, instance, request),
-#     )

@@ -4,10 +4,12 @@ import json
 import logging
 from datetime import date
 from datetime import datetime
-from typing import Any, Mapping
+from typing import Any
+from typing import Mapping
 
 import httpx
 from elasticsearch8 import NotFoundError
+from fastapi import FastAPI
 from geojson import mapping
 from oe_geoutils.utils import convert_geojson_to_geometry
 from oe_geoutils.utils import convert_wktelement_to_geojson
@@ -17,20 +19,22 @@ from oe_geoutils.utils import transform_projection
 from oe_utils.search.searchengine import SearchEngine
 from oe_utils.utils.db_utils import db_session
 from oeauth.openid import OpenIDHelper
-from fastapi import FastAPI
 from pytz import timezone
 from skosprovider.registry import Registry
 
 from app.core.config import Settings as AppSettings
 from app.core.config import get_settings
-from app.search.indexer import Indexer
 from app.models import Plan
+from app.search.indexer import Indexer
 from app.skos import fill_registry
 
 log = logging.getLogger(__name__)
 timezone_CET = timezone("CET")
 
-def _prepare_settings_for_index(settings: AppSettings | Mapping[str, Any]) -> dict[str, Any]:
+
+def _prepare_settings_for_index(
+    settings: AppSettings | Mapping[str, Any],
+) -> dict[str, Any]:
     """
     Build a settings dictionary with the legacy keys expected by the search/index
     code while supporting values loaded via the FastAPI `Settings` object.
@@ -80,7 +84,9 @@ def _create_openid_helper(settings: Mapping[str, Any]) -> OpenIDHelper:
         try:
             return settings[key]
         except KeyError as exc:
-            raise KeyError(f"Missing required setting '{key}' for OpenIDHelper") from exc
+            raise KeyError(
+                f"Missing required setting '{key}' for OpenIDHelper"
+            ) from exc
 
     cache_kwargs = {
         "cache.backend": settings.get("oeauth.cache.backend"),
@@ -134,9 +140,7 @@ def beheersplan_to_es_dict(beheersplan, open_id_helper, skos_registry):
             "Accept": "application/json",
         }
         async with httpx.AsyncClient(timeout=None) as client:
-            response = await client.get(
-                erfgoedobject.erfgoedobject_id, headers=headers
-            )
+            response = await client.get(erfgoedobject.erfgoedobject_id, headers=headers)
             if response.is_redirect:
                 redirect_url = response.headers.get("location")
                 if redirect_url:
@@ -156,7 +160,7 @@ def beheersplan_to_es_dict(beheersplan, open_id_helper, skos_registry):
         results = []
         slice_size = 50
         for i in range(0, len(erfgoedobjecten), slice_size):
-            slice_objs = erfgoedobjecten[i:i + slice_size]
+            slice_objs = erfgoedobjecten[i : i + slice_size]
             batch = await asyncio.gather(
                 *[
                     fetch_aanduidingsobjecttype(
@@ -257,12 +261,12 @@ def transform_contour_to_wsg84(contour):
 
 
 def index_beheersplan(
-        searchengine,
-        session,
-        _id,
-        open_id_helper,
-        skos_registry,
-        settings=None,
+    searchengine,
+    session,
+    _id,
+    open_id_helper,
+    skos_registry,
+    settings=None,
 ):
     beheersplan = session.query(Plan).get(_id)
     if not beheersplan:
