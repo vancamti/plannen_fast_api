@@ -108,19 +108,6 @@ Once the application is running, you can access:
 - Swagger UI: `http://localhost:8000/docs`
 - ReDoc: `http://localhost:8000/redoc`
 
-## API Endpoints
-
-### Health Check
-- `GET /` - Root endpoint
-- `GET /health` - Health check endpoint
-
-### Items
-- `POST /api/v1/items/` - Create a new item
-- `GET /api/v1/items/` - List all items
-- `GET /api/v1/items/{item_id}` - Get item by ID
-- `PUT /api/v1/items/{item_id}` - Update item
-- `DELETE /api/v1/items/{item_id}` - Delete item
-
 ## Database Migrations
 
 Create a new migration:
@@ -136,43 +123,6 @@ alembic upgrade head
 Rollback migration:
 ```bash
 alembic downgrade -1
-```
-
-## Development
-
-### Using Make Commands
-
-The project includes a Makefile with common tasks:
-
-```bash
-make help          # Show all available commands
-make setup         # Setup the project
-make run           # Run the FastAPI application
-make docker-up     # Start PostgreSQL and Elasticsearch
-make docker-down   # Stop Docker services
-make migrate       # Run database migrations
-make clean         # Clean up Python cache files
-```
-
-### Verify Setup
-
-Run the verification script to check if everything is set up correctly:
-
-```bash
-python verify_setup.py
-```
-
-### Running Tests
-
-```bash
-pytest  # (Not yet implemented)
-```
-
-### Code Formatting
-
-```bash
-black app/
-isort app/
 ```
 
 ## Environment Variables

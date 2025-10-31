@@ -1,95 +1,142 @@
-import sys
-from collections.abc import Generator
+import os
 from pathlib import Path
+from unittest.mock import MagicMock
 
-import anyio
-import httpx
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, event
+from sqlalchemy.orm import sessionmaker, Session
+from dotenv import load_dotenv
+from redis import Redis
 
-from app.core.dependencies import get_db
 from app.main import app
-from app.models import Base
+from app.core.dependencies import (
+    get_db,
+    get_redis,
+    get_storage_provider,
+    get_content_manager,
+    get_token_provider,
+    get_indexer,
+    get_searchengine,
+)
+from app.models import Base  # assuming you have Base in models
+from storageprovider.client import StorageProviderClient
+from app.storage.conent_manager import ContentManager
+from oeauth.openid import OpenIDHelper
+from app.search.indexer import Indexer
+from oe_utils.search.searchengine import SearchEngine
 
-sys.path.append(str(Path(__file__).resolve().parents[1]))
+# -------------------------------------------------------------------------
+# Load environment and setup test DB
+# -------------------------------------------------------------------------
+load_dotenv(Path(__file__).parent / "test.env", override=True)
+TEST_DB_URL = os.environ["DATABASE_URL"]
 
-
-def pytest_configure(config: pytest.Config) -> None:
-    if not getattr(config.option, "anyio_backend", None):
-        config.option.anyio_backend = ["asyncio"]
-
-
-class SyncASGITransport(httpx.BaseTransport):
-    def __init__(self, app):
-        self._transport = httpx.ASGITransport(app=app)
-
-    def handle_request(self, request: httpx.Request) -> httpx.Response:
-        async def send_request() -> httpx.Response:
-            response = await self._transport.handle_async_request(request)
-            try:
-                content = await response.aread()
-            finally:
-                await response.aclose()
-
-            return httpx.Response(
-                status_code=response.status_code,
-                headers=response.headers,
-                content=content,
-                extensions=response.extensions,
-                request=request,
-            )
-
-        return anyio.run(send_request)
-
-    def close(self) -> None:
-        anyio.run(self._transport.aclose)
+# Use a separate engine for tests
+engine = create_engine(TEST_DB_URL, future=True)
+TestingSessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
 
-@pytest.fixture()
-def db_engine() -> Generator:
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
+# -------------------------------------------------------------------------
+# Run migrations once per session (or create tables if no Alembic)
+# -------------------------------------------------------------------------
+@pytest.fixture(scope="session", autouse=True)
+def setup_database():
+    """Create tables once for the test session."""
     Base.metadata.create_all(bind=engine)
-    yield engine
+    yield
     Base.metadata.drop_all(bind=engine)
-    engine.dispose()
 
 
-@pytest.fixture()
-def db_session(db_engine) -> Generator[Session, None, None]:
-    TestingSessionLocal = sessionmaker(
-        autocommit=False,
-        autoflush=False,
-        bind=db_engine,
-    )
-    session = TestingSessionLocal()
+# -------------------------------------------------------------------------
+# DB transaction fixture (rollback per test)
+# -------------------------------------------------------------------------
+@pytest.fixture
+def db_session():
+    connection = engine.connect()
+    trans = connection.begin()
+
+    session = TestingSessionLocal(bind=connection)
+    nested = connection.begin_nested()
+
+    @event.listens_for(session, "after_transaction_end")
+    def restart_savepoint(sess, transaction):
+        if transaction.nested and not transaction._parent.nested:
+            connection.begin_nested()
+
     try:
         yield session
     finally:
-        session.rollback()
         session.close()
+        nested.rollback()
+        trans.rollback()
+        connection.close()
 
 
-@pytest.fixture()
-def test_client(db_session: Session) -> Generator[httpx.Client, None, None]:
-    def override_get_db() -> Generator[Session, None, None]:
-        try:
-            yield db_session
-        finally:
-            pass
+# -------------------------------------------------------------------------
+# Mock external dependencies
+# -------------------------------------------------------------------------
+@pytest.fixture
+def fake_redis():
+    """Provide a fake or in-memory Redis."""
+    # You could use fakeredis here if desired.
+    redis = Redis.from_url("redis://localhost:6379/15", decode_responses=True)
+    redis.flushdb()
+    return redis
 
-    app.dependency_overrides[get_db] = override_get_db
 
-    transport = SyncASGITransport(app=app)
-    client = httpx.Client(transport=transport, base_url="http://testserver")
-    try:
+@pytest.fixture
+def fake_storage_provider():
+    return MagicMock()
+
+
+@pytest.fixture
+def fake_content_manager(fake_storage_provider):
+    return MagicMock()
+
+
+@pytest.fixture
+def fake_token_provider():
+    return MagicMock()
+
+
+@pytest.fixture
+def fake_indexer():
+    return MagicMock()
+
+
+@pytest.fixture
+def fake_search_engine():
+    return MagicMock()
+
+
+# -------------------------------------------------------------------------
+# Override FastAPI dependencies with test doubles
+# -------------------------------------------------------------------------
+@pytest.fixture
+def test_app(
+    db_session,
+    fake_redis,
+    fake_storage_provider,
+    fake_content_manager,
+    fake_token_provider,
+    fake_indexer,
+    fake_search_engine,
+):
+    """FastAPI app with dependencies overridden for testing."""
+
+    def _get_test_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = _get_test_db
+    app.dependency_overrides[get_redis] = lambda: fake_redis
+    app.dependency_overrides[get_storage_provider] = lambda: fake_storage_provider
+    app.dependency_overrides[get_content_manager] = lambda: fake_content_manager
+    app.dependency_overrides[get_token_provider] = lambda: fake_token_provider
+    app.dependency_overrides[get_indexer] = lambda: fake_indexer
+    app.dependency_overrides[get_searchengine] = lambda: fake_search_engine
+
+    with TestClient(app) as client:
         yield client
-    finally:
-        client.close()
-        app.dependency_overrides.clear()
+
+    app.dependency_overrides.clear()
