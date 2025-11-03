@@ -1,6 +1,8 @@
-# Plannen Fast API
+# POC Plannen Fast API
 
-A mini clone of OE Plannen without security using FastAPI, Pydantic, SQLAlchemy, Alembic, Elasticsearch, and PostgreSQL.
+Een mini clone van OE Plannen zonder security.
+Tech stack: FastAPI, Pydantic, SQLAlchemy, Alembic, Elasticsearch, and PostgreSQL.
+Meeste dinge zijn geïmplemnteerd als POC en niet volledig production ready, maar zouden het wel kunnen zijn met wat extra werk.
 
 ## Tech Stack
 
@@ -11,39 +13,54 @@ A mini clone of OE Plannen without security using FastAPI, Pydantic, SQLAlchemy,
 - **Elasticsearch**: Search and analytics engine
 - **PostgreSQL**: Primary database
 
-## Project Structure
 
-```
-plannen_fast_api/
-├── alembic/                    # Database migrations
-│   └── versions/               # Migration scripts
-├── app/
-│   ├── api/
-│   │   └── v1/                 # API v1 endpoints
-│   │       └── items.py        # Example item endpoints
-│   ├── core/
-│   │   └── config.py           # Application configuration
-│   ├── db/
-│   │   ├── base.py             # Database session and base
-│   │   └── elasticsearch.py    # Elasticsearch client
-│   ├── models/
-│   │   └── item.py             # SQLAlchemy models
-│   ├── schemas/
-│   │   └── item.py             # Pydantic schemas
-│   ├── services/
-│   │   └── item_service.py     # Business logic
-│   └── main.py                 # FastAPI application entry point
-├── docker-compose.yml          # Docker services configuration
-├── requirements.txt            # Python dependencies
-└── .env.example                # Example environment variables
-```
+## Keuze voor FastAPI
+FastAPI is gekozen vanwege de volgende redenen:
+- **Snelheid**: FastAPI is een van de snelste Python web frameworks beschikbaar, wat resulteert in lage latentie en hoge doorvoer.
+- **Moderne functies**: Ondersteuning voor asynchrone programmeerpatronen, type hints en API-documentatie op basis van pydantic.
+- **Pydantic integratie**: integratie met Pydantic voor gegevensvalidatie en serialisatie.
+
+## Keuze voor SQLAlchemy
+SQLAlchemy is gekozen vanwege:
+- **Flexibiliteit**: Ondersteunt zowel ORM als Core (SQL expressies) dus flexibeler.
+- **Grote community**: Actieve community en uitgebreidere documentatie.
+- **Compatibiliteit**: Werkt goed met verschillende databases, waaronder PostgreSQL, wat onze primaire database is.
+- **Migraties**: Integratie met Alembic maakt database migraties eenvoudig te beheren.
+    ### Waarom niet SQLModel?
+  - SQLModel is niet gebruikt omdat het nog relatief nieuw is en minder volwassen dan SQLAlchemy zelf.
+  - SQLModel is gebouwd bovenop SQLAlchemy, maar mist sommige geavanceerde functies en flexibiliteit die SQLAlchemy biedt.
+  - Onze rest API's zijn niet standaard genoeg om volledig te profiteren van de eenvoud van SQLModel.
+  - SQLAlchemy heeft een grotere community en meer bronnen beschikbaar, wat nuttig is voor ondersteuning en probleemoplossing.
+  - SQLAlchemy kennen we al
+
+
+## Done
+- Basis CRUD operaties voor plannen
+- Indexeren van plannen in elasticsearch
+- elasticsearch integratie voor zoeken
+- Database migraties met Alembic
+- Basis validatie met Pydantic modellen
+- Basis endpoints met FastAPI
+- Add storage provider integratie
+- Api documentatie met Swagger UI en ReDoc
+- Basic setup voor testen van fastapi app
+- Environment file voor settings 
+- Voorbeelden van dependency injection en setup met .env variabelen
+
+## Todo 
+- Authentificatie en autorisatie
+- Validatie uitbreiden
+- Meer uitgebreide tests
+- skos is niet volledig geïmplementeerd
+- Env file opkuisen (ongebruikte variabelen en ook veel dubbele omdat veel bestande code met x.y werkt en .env eigenlijk X_Y notatie gebruikt) 
+- eventueel alles async maken, maar leek mij weinig meerwaarde voor deze app
+- Code verbeteringen en refactoring focus lag op proof of concept en functionaliteit
 
 ## Getting Started
-
 ### Prerequisites
 
 - Python 3.9+
-- Docker and Docker Compose (for local development)
+- Docker
 
 ### Quick Setup
 
@@ -52,16 +69,6 @@ plannen_fast_api/
 git clone https://github.com/vancamti/plannen_fast_api.git
 cd plannen_fast_api
 ```
-
-2. Run the setup script:
-```bash
-./setup.sh
-```
-
-This will:
-- Create a Python virtual environment
-- Install all dependencies
-- Create a `.env` file from the example
 
 ### Manual Installation
 
@@ -76,26 +83,27 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-3. Copy the example environment file and configure:
+3. Decrypt environment file:
 ```bash
-cp .env.example .env
+gpg .env.gpg
 ```
 
 ### Running with Docker
 
 1. Start PostgreSQL and Elasticsearch:
 ```bash
-docker-compose up -d
+docker start postgis
+docker start elasticsearch
 ```
 
 2. Run database migrations:
 ```bash
-alembic upgrade head
+./scripts/reset_db.sh
 ```
 
 3. Start the FastAPI application:
 ```bash
-./run.sh
+./scripts/run.sh
 # or
 uvicorn app.main:app --reload
 ```
@@ -124,10 +132,6 @@ Rollback migration:
 ```bash
 alembic downgrade -1
 ```
-
-## Environment Variables
-
-See `.env.example` for all available configuration options.
 
 ## License
 
